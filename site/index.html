@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vida na Natureza</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="vendor/leaflet.css">
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <header class="topo" id="topo">
+    <a href="#" class="marca">Vida na Natureza <span>Caio &amp; Bru</span></a>
+    <nav>
+      <a href="#mapa">Mapa</a>
+      <a href="#viagens">Viagens</a>
+      <a href="#especies">Espécies</a>
+    </nav>
+  </header>
+
+  <main id="app"></main>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lb-fechar" aria-label="Fechar">&times;</button>
+    <button class="lb-seta lb-ant" aria-label="Anterior">&#8249;</button>
+    <figure class="lb-foto"><img alt=""></figure>
+    <button class="lb-seta lb-prox" aria-label="Próxima">&#8250;</button>
+    <aside class="lb-info"></aside>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="mapa-base.js"></script>
+  <script src="dados.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

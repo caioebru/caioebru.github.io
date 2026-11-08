@@ -1,0 +1,8 @@
+# Só o site e as ferramentas vão para o GitHub.
+# As fotos originais (pastas com os arquivos grandes) ficam só no computador e no Drive.
+/*
+!/site/
+!/ferramentas/
+!/.github/
+!/LEIA-ME.md
+!/.gitignore
