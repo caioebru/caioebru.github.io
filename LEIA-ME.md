@@ -42,8 +42,8 @@ Ou mandem as fotos para o Claude: ele roda o script, identifica os bichos e pree
 
 ## GitHub Pages
 
-O site está em **https://caiolyramg-cmd.github.io/vida-na-natureza/**
-(repositório: https://github.com/caiolyramg-cmd/vida-na-natureza).
+O site está em **https://caioebru.github.io**
+(repositório: https://github.com/caioebru/caioebru.github.io, na organização "caioebru").
 
 Para atualizar depois de mudar algo, abra o PowerShell nesta pasta e rode:
 ```
