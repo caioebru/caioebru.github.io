@@ -141,6 +141,24 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; mar
 .card .meta { color: var(--tinta-2); font-size: .85rem; margin-top: 2px; }
 .card .cient { font-family: var(--serif); font-style: italic; color: var(--tinta-2); font-size: .95rem; }
 
+/* ---------- sons ---------- */
+.ouvir {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+  padding: 5px 12px 5px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--musgo); background: transparent; color: var(--musgo);
+  font: 600 .82rem var(--sans);
+}
+.ouvir:hover, .ouvir.tocando { background: var(--musgo); color: var(--papel); }
+.ouvir:focus-visible { outline: 2px solid var(--ocre); outline-offset: 2px; }
+.ouvir.tocando svg { animation: pulsar 1.2s ease-in-out infinite; }
+@keyframes pulsar { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .ouvir.tocando svg { animation: none; } }
+.lb-som { margin: 16px 0 4px; padding: 12px 14px; border-radius: 12px; background: rgba(141, 181, 134, .08); border: 1px solid #2a3027; }
+.lb-som .ouvir-grande { margin: 0; border-color: #8db586; color: #8db586; font-size: .9rem; padding: 8px 16px 8px 13px; }
+.lb-som .ouvir-grande:hover, .lb-som .ouvir-grande.tocando { background: #8db586; color: #10140e; }
+.lb-som p { margin: 8px 0 0; font-size: .76rem; color: #8f977f; line-height: 1.5; }
+.lb-som a { color: #b8bfa9; }
+
 /* ---------- capa das espécies ---------- */
 .card-foto { position: relative; }
 .trocar-capa {

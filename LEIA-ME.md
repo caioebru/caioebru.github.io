@@ -71,6 +71,10 @@ No GitHub Pages o mapa mostra as ruas (OpenStreetMap). Na página publicada no C
   ```
   e cole o resultado no `driveArquivos` da viagem. A pasta precisa estar como "Qualquer pessoa com o link".
 
+## Sons dos bichos
+
+Os sons ficam em `site/sons/`. Vêm do [iNaturalist](https://www.inaturalist.org), de gravações com licença Creative Commons, e o crédito de cada um (quem gravou, onde, licença e link) está no campo `som` da espécie no `dados.js`. As licenças "NC" só permitem uso não comercial, então mantenha o crédito e não use os sons para vender nada.
+
 ## Sobre as identificações
 
 As espécies foram identificadas pelas fotos, e o selo de cada uma mostra o grau de certeza.

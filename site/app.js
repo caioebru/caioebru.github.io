@@ -43,6 +43,7 @@ function mostrarTela(token) {
   if (!(rota in rotas)) rota = "";
   if (mapaLeaflet) { mapaLeaflet.remove(); mapaLeaflet = null; }
   fecharLightbox(true);
+  pararSom();
   topo.classList.toggle("escondido", rota === "");
   topo.querySelectorAll("nav a").forEach((a) => a.classList.toggle("ativo", a.getAttribute("href") === "#" + rota || (rota === "viagem" && a.getAttribute("href") === "#viagens")));
   rotas[rota](param);
@@ -322,6 +323,7 @@ function especies() {
               <div class="cient">${esc(e.cientifico)}</div>
               <div class="meta" style="margin-top:8px"><span class="selo ${e.confianca}">${CONFIANCA[e.confianca]}</span> · ${fs.length} ${fs.length === 1 ? "foto" : "fotos"}</div>
               <div class="meta">${esc(lugares)}</div>
+              ${e.som ? `<button class="ouvir" type="button" data-esp="${k}" aria-label="Ouvir ${esc(e.nome)}">${ICONE_PLAY} <span>Ouvir</span></button>` : ""}
             </div>
           </div>`;
         }).join("")}
@@ -338,14 +340,49 @@ function especies() {
   app.querySelectorAll(".card[data-esp]").forEach((c) => {
     const k = c.dataset.esp, fs = porEspecie[k];
     const abrir = () => abrirLightbox(fs, Math.max(0, fs.indexOf(capaDaEspecie(k, fs))));
-    c.addEventListener("click", (ev) => { if (!ev.target.closest(".trocar-capa")) abrir(); });
+    c.addEventListener("click", (ev) => { if (!ev.target.closest(".trocar-capa, .ouvir")) abrir(); });
     c.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target === c) abrir(); });
   });
+  app.querySelectorAll(".ouvir").forEach((b) => b.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    alternarSom(b.dataset.esp, b);
+  }));
   app.querySelectorAll(".trocar-capa").forEach((b) => b.addEventListener("click", (ev) => {
     ev.stopPropagation();
     escolherCapa(b.dataset.esp, porEspecie[b.dataset.esp]);
   }));
 }
+
+// ---------- sons ----------
+// Um tocador só para o site inteiro: tocar um som para o que estava tocando.
+const tocador = new Audio();
+tocador.preload = "none";
+let botaoTocando = null;
+const ICONE_PLAY = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
+const ICONE_PAUSA = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>`;
+function marcarBotao(b, tocando) {
+  if (!b) return;
+  b.classList.toggle("tocando", tocando);
+  b.querySelector("svg").outerHTML = tocando ? ICONE_PAUSA : ICONE_PLAY;
+  b.querySelector("span").textContent = tocando ? "Pausar" : (b.dataset.rotulo || "Ouvir");
+}
+function pararSom() {
+  tocador.pause();
+  marcarBotao(botaoTocando, false);
+  botaoTocando = null;
+}
+function alternarSom(k, b) {
+  const src = `sons/${ESPECIES[k].som.arquivo}`;
+  if (botaoTocando === b && !tocador.paused) return pararSom();
+  marcarBotao(botaoTocando, false);
+  if (!tocador.src.endsWith(src)) tocador.src = src;
+  botaoTocando = b;
+  marcarBotao(b, true);
+  tocador.play().catch(() => pararSom());
+}
+tocador.addEventListener("ended", () => { marcarBotao(botaoTocando, false); botaoTocando = null; });
+const creditoSom = (s) =>
+  `${esc(s.tipo)} gravado por ${esc(s.autor)} em ${esc(s.local)} · <a href="${s.link}" target="_blank" rel="noopener">iNaturalist ↗</a> · ${esc(s.licenca)}`;
 
 // ---------- capa das espécies ----------
 // A capa escolhida fica salva neste navegador; sem escolha, vale a "capa" do dados.js.
@@ -431,6 +468,7 @@ function fecharLightbox(veioDoVoltar = false) {
   if (lbNoHistorico && !veioDoVoltar) { ignorarVoltar = true; history.back(); }
   lbNoHistorico = false;
   lb.hidden = true; document.body.style.overflow = "";
+  pararSom();
   // Se trocou a capa vendo a foto na página Espécies, atualiza os cards.
   if (capaMudou && app.querySelector(".card-especie")) {
     const y = window.scrollY; especies(); window.scrollTo(0, y);
@@ -462,6 +500,11 @@ function mostrar() {
       ${f.legenda ? `<p class="legenda">${esc(f.legenda)}</p>` : ""}
       <p>${esc(e.descricao)}</p>
       ${e.nota ? `<p class="nota">${esc(e.nota)}</p>` : ""}
+      ${e.som ? `
+        <div class="lb-som">
+          <button class="ouvir ouvir-grande" type="button" data-rotulo="${e.grupo === "ave" ? "Ouvir o canto" : "Ouvir"}">${ICONE_PLAY} <span>${e.grupo === "ave" ? "Ouvir o canto" : "Ouvir"}</span></button>
+          <p>${creditoSom(e.som)}</p>
+        </div>` : ""}
       <div class="links">${Object.entries(e.links || {}).map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${n} ↗</a>`).join("")}</div>
       <button class="lb-capa" type="button">${ICONE_CAPA} Usar como capa da espécie</button>
     ` : `
@@ -472,6 +515,14 @@ function mostrar() {
       <a href="#${v.id}" style="color:inherit">${esc(v.titulo)}</a> · ${dataBR(v.data)}<br>
       ${lbIdx + 1} de ${lbLista.length} · ${esc(f.arquivo)}
     </div>`;
+  // Som: passar para outra foto da mesma espécie não interrompe o canto.
+  const botaoSom = lbInfo.querySelector(".lb-som .ouvir");
+  const somDaFoto = e?.som ? `sons/${e.som.arquivo}` : null;
+  if (!tocador.paused && !(somDaFoto && tocador.src.endsWith(somDaFoto))) pararSom();
+  if (botaoSom) {
+    if (!tocador.paused) { botaoTocando = botaoSom; marcarBotao(botaoSom, true); }
+    botaoSom.addEventListener("click", () => alternarSom(f.especie, botaoSom));
+  }
   const botaoCapa = lbInfo.querySelector(".lb-capa");
   if (botaoCapa) {
     const ehCapa = capaDaEspecie(f.especie, todasAsFotos().filter((x) => x.especie === f.especie)).arquivo === f.arquivo;

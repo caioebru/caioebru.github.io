@@ -6,6 +6,7 @@
 // Catálogo de espécies. Cada foto aponta para uma chave daqui.
 // confianca: "alta" | "provavel" | "a-confirmar"
 // capa (opcional): arquivo da foto que aparece no card da página Espécies.
+// som (opcional): gravação em site/sons/, com o crédito de quem gravou (licenças Creative Commons, do iNaturalist).
 const ESPECIES = {
   "sabia-laranjeira": {
     nome: "Sabiá-laranjeira",
@@ -21,6 +22,14 @@ const ESPECIES = {
       "WikiAves": "https://www.wikiaves.com.br/wiki/sabia-laranjeira",
       "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Turdus%20rufiventris",
     },
+    som: {
+      arquivo: "sabia-laranjeira.mp3",
+      tipo: "Canto",
+      autor: "Manequinho Correia",
+      licenca: "CC BY-NC 4.0",
+      local: "Atibaia, SP",
+      link: "https://www.inaturalist.org/observations/318737390",
+    },
   },
   "bem-te-vi-rajado": {
     nome: "Bem-te-vi-rajado",
@@ -33,6 +42,14 @@ const ESPECIES = {
     links: {
       "WikiAves": "https://www.wikiaves.com.br/wiki/bem-te-vi-rajado",
       "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Myiodynastes%20maculatus",
+    },
+    som: {
+      arquivo: "bem-te-vi-rajado.mp3",
+      tipo: "Canto",
+      autor: "Pedro Henrique Maloso Ramos",
+      licenca: "CC BY 4.0",
+      local: "Piracicaba, SP",
+      link: "https://www.inaturalist.org/observations/99373148",
     },
   },
   "bem-te-vi": {
@@ -47,6 +64,14 @@ const ESPECIES = {
       "WikiAves": "https://www.wikiaves.com.br/wiki/bem-te-vi",
       "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Pitangus%20sulphuratus",
     },
+    som: {
+      arquivo: "bem-te-vi.mp3",
+      tipo: "Canto",
+      autor: "Rodrigo Secolin",
+      licenca: "CC BY-NC 4.0",
+      local: "Mogi Guaçu, SP",
+      link: "https://www.inaturalist.org/observations/101785331",
+    },
   },
   "urubu-preto": {
     nome: "Urubu-preto",
@@ -60,6 +85,14 @@ const ESPECIES = {
     links: {
       "WikiAves": "https://www.wikiaves.com.br/wiki/urubu-preto",
       "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Coragyps%20atratus",
+    },
+    som: {
+      arquivo: "urubu-preto.mp3",
+      tipo: "Som (urubus não cantam: bufam e chiam)",
+      autor: "Alisson",
+      licenca: "CC BY-NC 4.0",
+      local: "Chã de Alegria, PE",
+      link: "https://www.inaturalist.org/observations/250954620",
     },
   },
   "besouro-metalico": {
@@ -101,6 +134,14 @@ const ESPECIES = {
     links: {
       "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Trigona%20spinipes",
     },
+    som: {
+      arquivo: "irapua.wav",
+      tipo: "Zumbido",
+      autor: "B. Phalan",
+      licenca: "CC BY 4.0",
+      local: "Botumirim, MG",
+      link: "https://www.inaturalist.org/observations/263773947",
+    },
   },
   "dione-juno": {
     nome: "Borboleta-do-maracujá",
@@ -141,6 +182,14 @@ const ESPECIES = {
       "No interior paulista ele cruza com o sagui-de-tufo-preto (Callithrix penicillata), que é nativo daqui, e muitos saguis são híbridos. Os tufos bem brancos destas fotos apontam para o tufo-branco. É fofo, mas não se deve dar comida: faz mal para eles e os deixa agressivos.",
     links: {
       "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Callithrix%20jacchus",
+    },
+    som: {
+      arquivo: "sagui-de-tufo-branco.mp3",
+      tipo: "Chamado",
+      autor: "Helamã",
+      licenca: "CC BY-NC 4.0",
+      local: "Santos, SP",
+      link: "https://www.inaturalist.org/observations/298464935",
     },
   },
   "aranha-de-funil": {
