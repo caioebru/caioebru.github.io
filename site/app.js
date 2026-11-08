@@ -42,7 +42,7 @@ function mostrarTela(token) {
   if (VIAGENS.some((v) => v.id === token)) { rota = "viagem"; param = token; }
   if (!(rota in rotas)) rota = "";
   if (mapaLeaflet) { mapaLeaflet.remove(); mapaLeaflet = null; }
-  fecharLightbox();
+  fecharLightbox(true);
   topo.classList.toggle("escondido", rota === "");
   topo.querySelectorAll("nav a").forEach((a) => a.classList.toggle("ativo", a.getAttribute("href") === "#" + rota || (rota === "viagem" && a.getAttribute("href") === "#viagens")));
   rotas[rota](param);
@@ -57,7 +57,11 @@ document.addEventListener("click", (ev) => {
   try { history.pushState(null, "", "#" + token); } catch (_) { /* a página publicada pode não permitir */ }
   mostrarTela(token);
 });
-window.addEventListener("popstate", () => mostrarTela(location.hash.slice(1)));
+window.addEventListener("popstate", () => {
+  if (!lb.hidden) return fecharLightbox(true);         // voltar com a foto aberta: fecha só a foto
+  if (ignorarVoltar) { ignorarVoltar = false; return; } // foto fechada pelo X: a página fica como está
+  mostrarTela(location.hash.slice(1));
+});
 
 // ---------- home ----------
 function home() {
@@ -409,14 +413,23 @@ const lbImg = lb.querySelector(".lb-foto img");
 const lbInfo = lb.querySelector(".lb-info");
 let lbLista = [], lbIdx = 0;
 
+// Abrir a foto cria uma entrada no histórico, para o "voltar" do celular
+// fechar só a foto e manter a página do álbum.
+let lbNoHistorico = false, ignorarVoltar = false;
 function abrirLightbox(lista, i) {
   lbLista = lista; lbIdx = i;
+  if (lb.hidden) {
+    try { history.pushState({ foto: true }, ""); lbNoHistorico = true; } catch (_) { /* página publicada pode não permitir */ }
+  }
   lb.hidden = false; document.body.style.overflow = "hidden";
   mostrar();
 }
 let capaMudou = false;
-function fecharLightbox() {
+// veioDoVoltar: o histórico já voltou sozinho (botão voltar) ou a tela está mudando.
+function fecharLightbox(veioDoVoltar = false) {
   if (lb.hidden) return;
+  if (lbNoHistorico && !veioDoVoltar) { ignorarVoltar = true; history.back(); }
+  lbNoHistorico = false;
   lb.hidden = true; document.body.style.overflow = "";
   // Se trocou a capa vendo a foto na página Espécies, atualiza os cards.
   if (capaMudou && app.querySelector(".card-especie")) {
