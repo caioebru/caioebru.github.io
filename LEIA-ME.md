@@ -42,7 +42,18 @@ Ou mandem as fotos para o Claude: ele roda o script, identifica os bichos e pree
 
 ## GitHub Pages
 
-A pasta já está pronta para o GitHub:
+O site está em **https://caiolyramg-cmd.github.io/vida-na-natureza/**
+(repositório: https://github.com/caiolyramg-cmd/vida-na-natureza).
+
+Para atualizar depois de mudar algo, abra o PowerShell nesta pasta e rode:
+```
+git add -A
+git commit -m "o que mudou"
+git push
+```
+Em um ou dois minutos o site novo está no ar.
+
+Como está configurado:
 - `.gitignore` manda só `site/`, `ferramentas/` e este guia. As fotos originais não sobem.
 - `.github/workflows/pages.yml` publica a pasta `site/` sozinho a cada envio para a branch `main`.
 - No GitHub, em Settings > Pages, escolha "Source: GitHub Actions".
