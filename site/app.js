@@ -50,9 +50,11 @@ const rotas = {
   viagens,
   viagem,
   especies,
+  roteiro,
 };
 
 let mapaLeaflet = null;
+let mapasRoteiro = []; // mapas da aba Roteiro, fechados ao trocar de tela
 let albumFiltroInicial = ""; // espécie para o álbum já abrir filtrado (vindo do mapa de uma espécie)
 function mostrarTela(token) {
   let rota = token, param = "";
@@ -61,6 +63,7 @@ function mostrarTela(token) {
   if (token.startsWith("mapa-") && ESPECIES[token.slice(5)]) { rota = "mapa"; param = token.slice(5); }
   if (!(rota in rotas)) rota = "";
   if (mapaLeaflet) { mapaLeaflet.remove(); mapaLeaflet = null; }
+  mapasRoteiro.forEach((m) => m.remove()); mapasRoteiro = [];
   fecharLightbox(true);
   pararSom();
   topo.classList.toggle("escondido", rota === "");
@@ -100,6 +103,7 @@ function home() {
           <a href="#mapa"><div class="ico">🗺️</div><h2>Mapa</h2><p>Onde a gente já foi. Clique num ponto para abrir o álbum.</p></a>
           <a href="#viagens"><div class="ico">📷</div><h2>Viagens</h2><p>Todos os álbuns, do mais novo ao mais antigo.</p></a>
           <a href="#especies"><div class="ico">🪲</div><h2>Espécies</h2><p>As aves, os insetos e os outros bichos que fotografamos, com o que descobrimos sobre cada um.</p></a>
+          <a href="#roteiro"><div class="ico">🧭</div><h2>Roteiro</h2><p>Ideias para as próximas saídas: perto de Bauru, o PETAR e o TOP 10 do Brasil.</p></a>
         </nav>
         <div class="numeros">
           <div><b>${VIAGENS.length}</b>${VIAGENS.length === 1 ? "viagem" : "viagens"}</div>
@@ -124,22 +128,7 @@ function mapa(esp) {
         ? `Onde vimos: <b>${esc(e.nome)}</b> · ${lugares.length} ${lugares.length === 1 ? "lugar" : "lugares"} · <a href="#mapa">Mostrar todos os álbuns</a>`
         : `${VIAGENS.length} ${VIAGENS.length === 1 ? "álbum" : "álbuns"}. Clique numa foto no mapa para abrir.`}</div>
     </section>`;
-  mapaLeaflet = L.map("mapa", { zoomControl: true, scrollWheelZoom: true, minZoom: 3, maxZoom: 19 });
-  mapaLeaflet.attributionControl.setPrefix(false);
-
-  // Mapa de ruas do OpenStreetMap. Onde as imagens de fora são bloqueadas
-  // (como na página publicada no Claude), usa os contornos do mapa-base.js.
-  const ruas = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
-  }).addTo(mapaLeaflet);
-  let carregou = false, erros = 0;
-  ruas.on("tileload", () => { carregou = true; });
-  ruas.on("tileerror", () => {
-    if (carregou || ++erros < 3 || !mapaLeaflet) return;
-    mapaLeaflet.removeLayer(ruas);
-    desenharContornos(mapaLeaflet);
-  });
+  mapaLeaflet = novoMapa("mapa");
 
   mapaLeaflet.on("popupopen", (ev) => {
     ev.popup.getElement().querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener("click", (ev2) => {
@@ -221,6 +210,24 @@ function mapa(esp) {
   desenharPinos();
 }
 
+// Mapa com as ruas do OpenStreetMap. Onde as imagens de fora são bloqueadas
+// (como na página publicada no Claude), usa os contornos do mapa-base.js.
+function novoMapa(id, opcoes = {}) {
+  const m = L.map(id, { zoomControl: true, scrollWheelZoom: true, minZoom: 3, maxZoom: 19, ...opcoes });
+  m.attributionControl.setPrefix(false);
+  const ruas = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+  }).addTo(m);
+  let carregou = false, erros = 0;
+  ruas.on("tileload", () => { carregou = true; });
+  ruas.on("tileerror", () => {
+    if (carregou || ++erros < 3 || !m._loaded) return;
+    try { m.removeLayer(ruas); desenharContornos(m); } catch (_) { /* o mapa já foi fechado */ }
+  });
+  return m;
+}
+
 // Contornos dos estados, usados quando o mapa de ruas não carrega.
 function desenharContornos(m) {
   const cor = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -237,6 +244,203 @@ function desenharContornos(m) {
   vizinhos.bringToBack(); ufs.bringToFront();
   m.getContainer().classList.add("sem-ruas");
   if (m.getZoom() > 7) m.setView(m.getCenter(), 6, { animate: false });
+}
+
+// ---------- roteiro ----------
+const TEMAS = { aves: "Aves", trilha: "Trilha", agua: "Água", cultura: "Cultura", aventura: "Aventura", caverna: "Caverna" };
+const SITUACAO = { gratis: "Grátis", pago: "Pago", agendar: "Agendar antes", fechado: "Sem visitação", confirmar: "A confirmar" };
+const comoChegar = (l) => `https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}`;
+
+function roteiro() {
+  document.title = "Roteiro · Vida na Natureza";
+  document.documentElement.style.setProperty("--topo-h", topo.offsetHeight + "px");
+  const R = ROTEIRO;
+  const lugares = [...R.perto.map((l) => ({ ...l, grupo: "perto" })), ...R.alem.map((l) => ({ ...l, grupo: "alem" }))]
+    .map((l, i) => ({ ...l, n: i + 1 }));
+  const temasUsados = Object.keys(TEMAS).filter((t) => lugares.some((l) => l.temas.includes(t)));
+
+  const cardLugar = (l) => `
+    <article class="lugar" id="lugar-${l.n}" data-temas="${l.temas.join(" ")}">
+      <div class="lugar-cab">
+        <span class="lugar-n ${l.grupo}">${l.n}</span>
+        <div class="lugar-titulo">
+          <h3>${esc(l.nome)}</h3>
+          <div class="meta">${esc(l.cidade)} · ~${l.km} km de Bauru</div>
+        </div>
+        <span class="situacao s-${l.situacao}">${SITUACAO[l.situacao]}</span>
+      </div>
+      <p>${esc(l.resumo)}</p>
+      ${l.dica ? `<p class="lugar-dica">${esc(l.dica)}</p>` : ""}
+      <dl class="lugar-info">
+        <dt>Preço</dt><dd>${esc(l.preco)}</dd>
+        ${l.contato ? `<dt>Contato</dt><dd>${esc(l.contato)}</dd>` : ""}
+      </dl>
+      <div class="lugar-temas">${l.temas.map((t) => `<span>${TEMAS[t]}</span>`).join("")}</div>
+      <div class="lugar-acoes">
+        <button type="button" class="ver-no-mapa" data-n="${l.n}">${ICONE_PINO} Ver no mapa</button>
+        <a href="${comoChegar(l)}" target="_blank" rel="noopener">Como chegar ↗</a>
+        ${l.link ? `<a href="${l.link}" target="_blank" rel="noopener">Mais informações ↗</a>` : ""}
+        ${l.album ? `<a href="#${l.album}" class="ja-fomos">Já fomos: ${esc((VIAGENS.find((v) => v.id === l.album) || {}).titulo || "ver o álbum")}</a>` : ""}
+      </div>
+    </article>`;
+
+  const P = R.petar;
+  app.innerHTML = `
+    <section class="pagina roteiro">
+      <h1>Roteiro</h1>
+      <p class="intro">Ideias para as próximas saídas, pensadas em bichos, trilha e aventura. Pesquisa de novembro de 2026: preços mudam, então confirmem antes de ir.</p>
+      <nav class="roteiro-secoes" aria-label="Partes do roteiro">
+        <button type="button" data-alvo="sec-perto">Perto de Bauru</button>
+        <button type="button" data-alvo="sec-petar">PETAR</button>
+        <button type="button" data-alvo="sec-top">TOP 10</button>
+      </nav>
+
+      <section id="sec-perto" class="roteiro-bloco">
+        <h2>Perto de Bauru</h2>
+        <p class="roteiro-sub">Num raio de 50 km a região é quase toda cana e pasto, e há poucos parques abertos. O que vale são as matas que guardam bichos, o rio Tietê e a Terra Indígena Araribá. Os pontos em laranja ficam um pouco mais longe, até ~2h30 de carro.</p>
+        <div class="roteiro-mapa"><div id="mapa-perto"></div></div>
+        <div class="filtros" id="filtro-temas">
+          <button class="chip ativo" data-tema="">Todos</button>
+          ${temasUsados.map((t) => `<button class="chip" data-tema="${t}">${TEMAS[t]}</button>`).join("")}
+        </div>
+        <h3 class="sec-titulo">Até 50 km</h3>
+        <div class="lugares">${lugares.filter((l) => l.grupo === "perto").map(cardLugar).join("")}</div>
+        <h3 class="sec-titulo" style="margin-top:28px">Um pouco além (até ~2h30)</h3>
+        <div class="lugares">${lugares.filter((l) => l.grupo === "alem").map(cardLugar).join("")}</div>
+      </section>
+
+      <section id="sec-petar" class="roteiro-bloco petar">
+        <div class="petar-cab">
+          <div>
+            <div class="sec-titulo">Destaque</div>
+            <h2>${esc(P.nome)} <small>${esc(P.completo)}</small></h2>
+            <div class="meta">${esc(P.cidade)} · ~${P.km} km · ${esc(P.horas)}</div>
+          </div>
+          <div class="lugar-acoes">
+            <a href="${comoChegar(P)}" target="_blank" rel="noopener">Como chegar ↗</a>
+            <a href="${P.link}" target="_blank" rel="noopener">Ingressos ↗</a>
+          </div>
+        </div>
+        <p class="petar-resumo">${esc(P.resumo)}</p>
+        <div class="petar-grade">
+          <div>
+            <h3 class="sec-titulo">Núcleos</h3>
+            <dl class="petar-lista">${P.nucleos.map(([n, d]) => `<dt>${esc(n)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
+          </div>
+          <div>
+            <h3 class="sec-titulo">Quanto custa (2026)</h3>
+            <dl class="petar-lista">${P.precos.map(([n, d]) => `<dt>${esc(n)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
+            <h3 class="sec-titulo" style="margin-top:18px">Dicas</h3>
+            <ul class="petar-dicas">${P.dicas.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-top" class="roteiro-bloco">
+        <h2>TOP 10 para ir um dia</h2>
+        <p class="roteiro-sub">Os lugares mais incríveis do Brasil para bichos, trilha e aventura, do mais especial para vocês ao mais distante do bolso.</p>
+        <div class="roteiro-mapa"><div id="mapa-top"></div></div>
+        <ol class="top10">
+          ${R.top.map((t, i) => `
+            <li id="top-${i + 1}">
+              <span class="top-n">${i + 1}</span>
+              <div class="top-corpo">
+                <h3>${esc(t.nome)} <small>${esc(t.onde)}</small></h3>
+                <p class="top-bichos">${esc(t.bichos)}</p>
+                <dl class="lugar-info">
+                  <dt>Como ir</dt><dd>${esc(t.como)}</dd>
+                  <dt>Custo</dt><dd>${esc(t.custo)}</dd>
+                </dl>
+                <div class="lugar-acoes">
+                  <button type="button" class="ver-no-mapa" data-top="${i + 1}">${ICONE_PINO} Ver no mapa</button>
+                  <a href="${comoChegar(t)}" target="_blank" rel="noopener">Como chegar ↗</a>
+                </div>
+              </div>
+            </li>`).join("")}
+        </ol>
+        <div class="sugestao">
+          <h3>Se fosse para escolher três</h3>
+          <dl>${R.sugestao.map(([q, o]) => `<dt>${esc(q)}</dt><dd>${esc(o)}</dd>`).join("")}</dl>
+        </div>
+      </section>
+
+      <details class="roteiro-fontes">
+        <summary>Fontes da pesquisa</summary>
+        <ul>${R.fontes.map(([n, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${esc(n)}</a></li>`).join("")}</ul>
+      </details>
+    </section>`;
+
+  // Atalhos para as partes da página
+  app.querySelectorAll(".roteiro-secoes button").forEach((b) => b.addEventListener("click", () =>
+    document.getElementById(b.dataset.alvo).scrollIntoView({ behavior: "smooth", block: "start" })));
+
+  // Mapa de perto: círculo de 50 km em volta de Bauru e um pino numerado por lugar
+  const pinoNumero = (n, classe) => L.divIcon({ className: "", html: `<span class="pino-num ${classe}">${n}</span>`, iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -14] });
+  const mPerto = novoMapa("mapa-perto", { scrollWheelZoom: false });
+  mapasRoteiro.push(mPerto);
+  L.circle([R.centro.lat, R.centro.lng], { radius: 50000, color: "#3d5a3a", weight: 1.5, dashArray: "6 6", fillOpacity: 0.04 }).addTo(mPerto);
+  L.marker([R.centro.lat, R.centro.lng], { icon: L.divIcon({ className: "", html: `<span class="pino-centro">Bauru</span>`, iconSize: [60, 22], iconAnchor: [30, 11] }), interactive: false }).addTo(mPerto);
+  const marcasPerto = {};
+  lugares.forEach((l) => {
+    marcasPerto[l.n] = L.marker([l.lat, l.lng], { icon: pinoNumero(l.n, l.grupo), title: l.nome }).addTo(mPerto)
+      .bindPopup(`<div class="popup-roteiro"><b>${l.n}. ${esc(l.nome)}</b><br>${esc(l.cidade)} · ~${l.km} km<br><a href="#" data-ir="lugar-${l.n}">Ver detalhes</a></div>`);
+  });
+  const enquadrarPerto = () => mPerto.fitBounds(L.latLng(R.centro.lat, R.centro.lng).toBounds(110000), { animate: false });
+  enquadrarPerto();
+
+  // Mapa do TOP 10, com o PETAR em destaque
+  const mTop = novoMapa("mapa-top", { scrollWheelZoom: false });
+  mapasRoteiro.push(mTop);
+  const marcasTop = {};
+  R.top.forEach((t, i) => {
+    marcasTop[i + 1] = L.marker([t.lat, t.lng], { icon: pinoNumero(i + 1, "top"), title: t.nome }).addTo(mTop)
+      .bindPopup(`<div class="popup-roteiro"><b>${i + 1}. ${esc(t.nome)}</b><br>${esc(t.onde)}<br><a href="#" data-ir="top-${i + 1}">Ver detalhes</a></div>`);
+  });
+  L.marker([P.lat, P.lng], { icon: pinoNumero("P", "petar"), title: "PETAR" }).addTo(mTop)
+    .bindPopup(`<div class="popup-roteiro"><b>PETAR</b><br>${esc(P.cidade)}<br><a href="#" data-ir="sec-petar">Ver detalhes</a></div>`);
+  L.marker([R.centro.lat, R.centro.lng], { icon: L.divIcon({ className: "", html: `<span class="pino-centro">Bauru</span>`, iconSize: [60, 22], iconAnchor: [30, 11] }), interactive: false }).addTo(mTop);
+  const enquadrarTop = () => mTop.fitBounds([...R.top.map((t) => [t.lat, t.lng]), [R.centro.lat, R.centro.lng], [P.lat, P.lng]], { padding: [30, 30], animate: false });
+  enquadrarTop();
+  // Logo no carregamento a página às vezes ainda tem largura 0: espera o mapa
+  // ganhar tamanho (checando a cada 0,2 s, por até 5 s) e enquadra de novo.
+  [[mPerto, enquadrarPerto], [mTop, enquadrarTop]].forEach(([m, enquadrar]) => {
+    if (m.getSize().x) return;
+    let tentativas = 0;
+    const checar = () => {
+      if (!mapasRoteiro.includes(m)) return; // saiu da tela
+      const el = m.getContainer();
+      if (el.clientWidth && el.clientHeight) { m.invalidateSize(false); enquadrar(); }
+      else if (++tentativas < 25) setTimeout(checar, 200);
+    };
+    setTimeout(checar, 200);
+  });
+
+  // "Ver detalhes" no balão rola até o card; "Ver no mapa" no card abre o balão
+  [mPerto, mTop].forEach((m) => m.on("popupopen", (ev) => {
+    const a = ev.popup.getElement().querySelector("[data-ir]");
+    a?.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      m.closePopup();
+      const alvo = document.getElementById(a.dataset.ir);
+      alvo.scrollIntoView({ behavior: "smooth", block: "center" });
+      alvo.classList.add("destaque"); setTimeout(() => alvo.classList.remove("destaque"), 1600);
+    });
+  }));
+  app.querySelectorAll(".ver-no-mapa").forEach((b) => b.addEventListener("click", () => {
+    const [m, marca, zoom] = b.dataset.n ? [mPerto, marcasPerto[b.dataset.n], 12] : [mTop, marcasTop[b.dataset.top], 7];
+    m.getContainer().scrollIntoView({ behavior: "smooth", block: "center" });
+    m.setView(marca.getLatLng(), Math.max(m.getZoom(), zoom));
+    marca.openPopup();
+  }));
+
+  // Filtro por tema
+  document.getElementById("filtro-temas").addEventListener("click", (ev) => {
+    const b = ev.target.closest(".chip"); if (!b) return;
+    const tema = b.dataset.tema;
+    document.querySelectorAll("#filtro-temas .chip").forEach((c) => c.classList.toggle("ativo", c === b));
+    app.querySelectorAll(".lugar").forEach((card) => { card.hidden = !!tema && !card.dataset.temas.split(" ").includes(tema); });
+    lugares.forEach((l) => { const el = marcasPerto[l.n].getElement(); if (el) el.style.opacity = !tema || l.temas.includes(tema) ? 1 : 0.25; });
+  });
 }
 
 // ---------- lista de viagens ----------

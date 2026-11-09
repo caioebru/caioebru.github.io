@@ -71,6 +71,10 @@ No GitHub Pages o mapa mostra as ruas (OpenStreetMap). Na página publicada no C
   ```
   e cole o resultado no `driveArquivos` da viagem. A pasta precisa estar como "Qualquer pessoa com o link".
 
+## Roteiro
+
+A aba Roteiro lê o arquivo `site/roteiro.js`: lugares perto de Bauru, os um pouco mais longe, o PETAR e o TOP 10. Para adicionar ou mudar um lugar, copie um bloco parecido e ajuste nome, cidade, km, coordenadas (lat e lng, do Google Maps), temas, situação e preço. A pesquisa completa, com todas as fontes, está em `roteiro/ideias-de-roteiro.md` (esse arquivo fica só no computador).
+
 ## Sons dos bichos
 
 Os sons ficam em `site/sons/`. Vêm do [iNaturalist](https://www.inaturalist.org), de gravações com licença Creative Commons, e o crédito de cada um (quem gravou, onde, licença e link) está no campo `som` da espécie no `dados.js`. As licenças "NC" só permitem uso não comercial, então mantenha o crédito e não use os sons para vender nada.
