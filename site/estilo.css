@@ -157,10 +157,35 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; mar
 .pino-num.alem { background: var(--ocre); }
 .pino-num.top { background: #2f4a6b; }
 .pino-num.petar { background: #7a3e6a; }
+.pino-camping { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #fbf8f1; border: 2px solid #6b5a3a; font-size: .85rem; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.camping-icone { background: var(--papel-2) !important; font-size: .95rem; }
 .pino-centro { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--tinta); color: var(--papel); font: 700 .72rem/1.6 var(--sans); }
 .popup-roteiro { padding: 10px 14px; font-size: .88rem; line-height: 1.5; }
 .popup-roteiro a { color: var(--musgo); font-weight: 600; }
 
+.opiniao { border-top: 1px dashed var(--linha); padding-top: 8px; font-size: .88rem; }
+.opiniao summary { cursor: pointer; font-weight: 600; color: var(--tinta); list-style: none; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.opiniao summary::-webkit-details-marker { display: none; }
+.opiniao summary::before { content: "💬"; }
+.opiniao summary::after { content: "▾"; color: var(--tinta-2); margin-left: auto; transition: transform .2s; }
+.opiniao[open] summary::after { transform: rotate(180deg); }
+.opiniao summary b { font-weight: 500; color: var(--tinta-2); }
+.opiniao p { margin: 8px 0 0; color: var(--tinta-2); font-size: .88rem; }
+.opiniao ul { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.opiniao li { padding-left: 22px; position: relative; color: var(--tinta); }
+.op-bom li::before { content: "✓"; position: absolute; left: 4px; color: var(--musgo); font-weight: 700; }
+.op-atencao li::before { content: "!"; position: absolute; left: 6px; color: var(--ocre); font-weight: 700; }
+.op-fontes { font-size: .78rem !important; }
+.op-fontes a { color: var(--tinta-2); }
+.aviso-urbex { margin: -6px 0 16px; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, #7a3e6a 9%, var(--cartao)); border: 1px solid color-mix(in srgb, #7a3e6a 25%, var(--linha)); font-size: .88rem; max-width: 72ch; }
+.lugar-n.dif, .pino-num.dif { background: #7a3e6a; }
+.lugar.diferente { border-color: color-mix(in srgb, #7a3e6a 22%, var(--linha)); }
+.roteiro-filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 18px; }
+.roteiro-filtros .filtros { margin: 0; }
+.so-novos { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--tinta); cursor: pointer; user-select: none; }
+.so-novos input { width: 18px; height: 18px; accent-color: var(--musgo); margin: 0; cursor: pointer; }
+.roteiro-contagem { margin: 8px 0 18px; font-size: .85rem; color: var(--tinta-2); }
+.lugar.visitado { background: color-mix(in srgb, var(--ocre) 5%, var(--cartao)); }
 .lugares { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; }
 .lugar { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; background: var(--cartao); border: 1px solid var(--linha); border-radius: 14px; scroll-margin-top: calc(var(--topo-h, 57px) + 24px); transition: box-shadow .3s, border-color .3s; min-width: 0; }
 .lugar[hidden] { display: none; }
@@ -218,6 +243,13 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; mar
 .roteiro-fontes a { color: var(--tinta-2); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .top-n { color: #9bb6d6; } }
 :root[data-theme="dark"] .top-n { color: #9bb6d6; }
+
+/* ---------- zoológico ou natureza ---------- */
+.selo-zoo { position: absolute; left: 8px; top: 8px; padding: 2px 9px; border-radius: 999px; background: rgba(16, 20, 14, .72); color: #f6f1e6; font: 600 .72rem var(--sans); backdrop-filter: blur(6px); }
+.numero-zoo { background: rgba(80, 70, 50, .8); }
+.origem { display: inline-block; margin: -6px 0 12px; padding: 2px 10px; border-radius: 999px; font: 600 .75rem var(--sans); }
+.origem-natureza { background: rgba(141, 181, 134, .15); color: #8db586; }
+.origem-zoo { background: rgba(224, 154, 80, .15); color: #e09a50; }
 
 /* ---------- caderneta ---------- */
 .caderneta-resumo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; margin: 18px 0 20px; padding: 18px 22px; background: var(--cartao); border: 1px solid var(--linha); border-radius: 16px; }

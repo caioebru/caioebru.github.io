@@ -213,6 +213,10 @@ const DRIVE_GERAL = "https://drive.google.com/drive/folders/1hn15ONYq7BDZr08ek77
 // Viagens. "fotos" usa: arquivo, tipo ("ave" | "inseto" | "paisagem" | "nos"),
 // especie (chave em ESPECIES, opcional) e legenda (opcional).
 // local: nome do lugar exato, que aparece embaixo do pino no mapa.
+// zoologico: true quando a viagem é a um zoológico (todos os bichos estão em cativeiro).
+//   Foto de bicho em cativeiro aparece marcada como "Zoológico" e não entra na caderneta.
+//   Numa foto, "cativeiro: true" (ou false) vale mais que o zoologico da viagem: serve para
+//   o urubu solto que apareceu dentro do zoológico, por exemplo.
 // drive: pasta da viagem no Drive.
 // driveArquivos: { "DSC0001.jpg": "id do arquivo no Drive" }. Gere com ferramentas\links-drive.ps1.
 //   A foto que não estiver na lista abre a pasta da viagem.

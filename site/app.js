@@ -27,13 +27,18 @@ function todasAsFotos() {
   return VIAGENS.flatMap((v) => v.fotos.map((f) => ({ ...f, viagem: v })));
 }
 
+// Foto de bicho em cativeiro (zoológico)? Vale o "cativeiro" da foto; sem ele,
+// o "zoologico" da viagem.
+const emZoo = (f, v = f.viagem) => f.cativeiro ?? !!(v && v.zoologico);
+
 // Caderneta: para cada espécie, a viagem em que apareceu pela primeira vez e
 // todas as viagens em que já apareceu. O número segue a ordem em que foram vistas
 // (viagens da mais antiga para a mais nova, fotos na ordem em que foram tiradas).
+// Como na observação de aves, só conta bicho visto na natureza: zoológico não entra.
 function caderneta() {
   const c = {};
   [...viagensOrdenadas()].reverse().forEach((v) => v.fotos.forEach((f) => {
-    if (!ESPECIES[f.especie]) return;
+    if (!ESPECIES[f.especie] || emZoo(f, v)) return;
     const r = (c[f.especie] ||= { primeira: v, viagens: [], fotos: 0 });
     if (!r.viagens.includes(v)) r.viagens.push(v);
     r.fotos++;
@@ -250,6 +255,22 @@ function desenharContornos(m) {
 const TEMAS = { aves: "Aves", trilha: "Trilha", agua: "Água", cultura: "Cultura", aventura: "Aventura", caverna: "Caverna" };
 const SITUACAO = { gratis: "Grátis", pago: "Pago", agendar: "Agendar antes", fechado: "Sem visitação", confirmar: "A confirmar" };
 const comoChegar = (l) => `https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}`;
+// Álbuns de um lugar do roteiro: "album" pode ser um id ou uma lista de ids.
+const albunsDe = (l) => [].concat(l.album || []).filter((id) => VIAGENS.some((v) => v.id === id));
+let roteiroSoNovos = (() => { try { return !!localStorage.getItem("vida-na-natureza:so-novos"); } catch (_) { return false; } })();
+
+// "O que o pessoal fala": resumo das opiniões encontradas, com as fontes.
+function blocoOpiniao(a) {
+  if (!a) return "";
+  return `
+    <details class="opiniao">
+      <summary>O que o pessoal fala${a.nota ? ` · <b>${esc(a.nota)}</b>` : ""}</summary>
+      ${a.resumo ? `<p>${esc(a.resumo)}</p>` : ""}
+      ${a.bom?.length ? `<ul class="op-bom">${a.bom.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+      ${a.atencao?.length ? `<ul class="op-atencao">${a.atencao.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+      ${a.fontes?.length ? `<p class="op-fontes">Fontes: ${a.fontes.map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(" · ")}</p>` : ""}
+    </details>`;
+}
 
 function roteiro() {
   document.title = "Roteiro · Vida na Natureza";
@@ -260,7 +281,7 @@ function roteiro() {
   const temasUsados = Object.keys(TEMAS).filter((t) => lugares.some((l) => l.temas.includes(t)));
 
   const cardLugar = (l) => `
-    <article class="lugar" id="lugar-${l.n}" data-temas="${l.temas.join(" ")}">
+    <article class="lugar${albunsDe(l).length ? " visitado" : ""}" id="lugar-${l.n}" data-temas="${l.temas.join(" ")}">
       <div class="lugar-cab">
         <span class="lugar-n ${l.grupo}">${l.n}</span>
         <div class="lugar-titulo">
@@ -275,12 +296,13 @@ function roteiro() {
         <dt>Preço</dt><dd>${esc(l.preco)}</dd>
         ${l.contato ? `<dt>Contato</dt><dd>${esc(l.contato)}</dd>` : ""}
       </dl>
+      ${blocoOpiniao(l.avaliacao)}
       <div class="lugar-temas">${l.temas.map((t) => `<span>${TEMAS[t]}</span>`).join("")}</div>
       <div class="lugar-acoes">
         <button type="button" class="ver-no-mapa" data-n="${l.n}">${ICONE_PINO} Ver no mapa</button>
         <a href="${comoChegar(l)}" target="_blank" rel="noopener">Como chegar ↗</a>
         ${l.link ? `<a href="${l.link}" target="_blank" rel="noopener">Mais informações ↗</a>` : ""}
-        ${l.album ? `<a href="#${l.album}" class="ja-fomos">Já fomos: ${esc((VIAGENS.find((v) => v.id === l.album) || {}).titulo || "ver o álbum")}</a>` : ""}
+        ${albunsDe(l).map((id) => `<a href="#${id}" class="ja-fomos">Já fomos: ${esc((VIAGENS.find((v) => v.id === id) || {}).titulo || "ver o álbum")}</a>`).join("")}
       </div>
     </article>`;
 
@@ -291,22 +313,53 @@ function roteiro() {
       <p class="intro">Ideias para as próximas saídas, pensadas em bichos, trilha e aventura. Pesquisa de novembro de 2026: preços mudam, então confirmem antes de ir.</p>
       <nav class="roteiro-secoes" aria-label="Partes do roteiro">
         <button type="button" data-alvo="sec-perto">Perto de Bauru</button>
+        <button type="button" data-alvo="sec-diferentes">Lugares diferentes</button>
         <button type="button" data-alvo="sec-petar">PETAR</button>
         <button type="button" data-alvo="sec-top">TOP 10</button>
+        <button type="button" data-alvo="sec-camping">Onde acampar</button>
       </nav>
 
       <section id="sec-perto" class="roteiro-bloco">
         <h2>Perto de Bauru</h2>
         <p class="roteiro-sub">Num raio de 50 km a região é quase toda cana e pasto, e há poucos parques abertos. O que vale são as matas que guardam bichos, o rio Tietê e a Terra Indígena Araribá. Os pontos em laranja ficam um pouco mais longe, até ~2h30 de carro.</p>
         <div class="roteiro-mapa"><div id="mapa-perto"></div></div>
-        <div class="filtros" id="filtro-temas">
-          <button class="chip ativo" data-tema="">Todos</button>
-          ${temasUsados.map((t) => `<button class="chip" data-tema="${t}">${TEMAS[t]}</button>`).join("")}
+        <div class="roteiro-filtros">
+          <div class="filtros" id="filtro-temas">
+            <button class="chip ativo" data-tema="">Todos</button>
+            ${temasUsados.map((t) => `<button class="chip" data-tema="${t}">${TEMAS[t]}</button>`).join("")}
+          </div>
+          <label class="so-novos"><input type="checkbox" id="so-novos" ${roteiroSoNovos ? "checked" : ""}> Esconder onde já fomos</label>
         </div>
+        <p class="roteiro-contagem" id="roteiro-contagem"></p>
         <h3 class="sec-titulo">Até 50 km</h3>
         <div class="lugares">${lugares.filter((l) => l.grupo === "perto").map(cardLugar).join("")}</div>
         <h3 class="sec-titulo" style="margin-top:28px">Um pouco além (até ~2h30)</h3>
         <div class="lugares">${lugares.filter((l) => l.grupo === "alem").map(cardLugar).join("")}</div>
+      </section>
+
+      <section id="sec-diferentes" class="roteiro-bloco">
+        <h2>Lugares diferentes</h2>
+        <p class="roteiro-sub">Abandonados, curiosos ou com lenda: igreja perdida no mato, estações de trem fantasmas, dinossauros e uma vila deserta. Aparecem em roxo no mapa de perto de Bauru.</p>
+        <p class="aviso-urbex">Muitos são particulares, da União ou estão caindo aos pedaços. Vejam de fora, vão de dia, não entrem em construção em ruína e não levem nada de lá.</p>
+        <div class="lugares">${R.diferentes.map((d, i) => `
+          <article class="lugar diferente" id="diferente-${i}">
+            <div class="lugar-cab">
+              <span class="lugar-n dif">?</span>
+              <div class="lugar-titulo">
+                <h3>${esc(d.nome)}</h3>
+                <div class="meta">${esc(d.cidade)} · ~${d.km} km de Bauru</div>
+              </div>
+              ${d.preco ? `<span class="situacao s-gratis">${esc(d.preco)}</span>` : ""}
+            </div>
+            <p>${esc(d.resumo)}</p>
+            ${d.dica ? `<p class="lugar-dica">${esc(d.dica)}</p>` : ""}
+            ${d.contato ? `<dl class="lugar-info"><dt>Contato</dt><dd>${esc(d.contato)}</dd></dl>` : ""}
+            <div class="lugar-acoes">
+              <a href="${comoChegar(d)}" target="_blank" rel="noopener">Como chegar${d.aprox ? " (local aproximado)" : ""} ↗</a>
+              ${d.link ? `<a href="${d.link}" target="_blank" rel="noopener">Mais informações ↗</a>` : ""}
+            </div>
+          </article>`).join("")}
+        </div>
       </section>
 
       <section id="sec-petar" class="roteiro-bloco petar">
@@ -319,9 +372,11 @@ function roteiro() {
           <div class="lugar-acoes">
             <a href="${comoChegar(P)}" target="_blank" rel="noopener">Como chegar ↗</a>
             <a href="${P.link}" target="_blank" rel="noopener">Ingressos ↗</a>
+            ${albunsDe(P).map((id) => `<a href="#${id}" class="ja-fomos">Já fomos: ${esc(VIAGENS.find((v) => v.id === id).titulo)}</a>`).join("")}
           </div>
         </div>
         <p class="petar-resumo">${esc(P.resumo)}</p>
+        ${blocoOpiniao(P.avaliacao)}
         <div class="petar-grade">
           <div>
             <h3 class="sec-titulo">Núcleos</h3>
@@ -351,9 +406,11 @@ function roteiro() {
                   <dt>Como ir</dt><dd>${esc(t.como)}</dd>
                   <dt>Custo</dt><dd>${esc(t.custo)}</dd>
                 </dl>
+                ${blocoOpiniao(t.avaliacao)}
                 <div class="lugar-acoes">
                   <button type="button" class="ver-no-mapa" data-top="${i + 1}">${ICONE_PINO} Ver no mapa</button>
                   <a href="${comoChegar(t)}" target="_blank" rel="noopener">Como chegar ↗</a>
+                  ${albunsDe(t).map((id) => `<a href="#${id}" class="ja-fomos">Já fomos: ${esc(VIAGENS.find((v) => v.id === id).titulo)}</a>`).join("")}
                 </div>
               </div>
             </li>`).join("")}
@@ -362,6 +419,32 @@ function roteiro() {
           <h3>Se fosse para escolher três</h3>
           <dl>${R.sugestao.map(([q, o]) => `<dt>${esc(q)}</dt><dd>${esc(o)}</dd>`).join("")}</dl>
         </div>
+      </section>
+
+      <section id="sec-camping" class="roteiro-bloco">
+        <h2>Onde acampar</h2>
+        <p class="roteiro-sub">Campings perto dos lugares do roteiro. Quase todos os preços vêm de relatos antigos de viajantes, então liguem antes. Os campings da região também aparecem como barraquinhas no mapa de perto de Bauru.</p>
+        ${[...new Set(R.campings.map((c) => c.area))].map((area) => `
+          <h3 class="sec-titulo" style="margin-top:22px">${esc(area)}</h3>
+          <div class="lugares">${R.campings.map((c, i) => ({ ...c, i })).filter((c) => c.area === area).map((c) => `
+            <article class="lugar camping" id="camping-${c.i}">
+              <div class="lugar-cab">
+                <span class="lugar-n camping-icone" aria-hidden="true">⛺</span>
+                <div class="lugar-titulo">
+                  <h3>${esc(c.nome)}</h3>
+                  <div class="meta">${esc(c.cidade)}</div>
+                </div>
+              </div>
+              <p>${esc(c.resumo)}</p>
+              ${c.dica ? `<p class="lugar-dica">${esc(c.dica)}</p>` : ""}
+              <dl class="lugar-info"><dt>Preço</dt><dd>${esc(c.preco)}</dd></dl>
+              ${blocoOpiniao(c.avaliacao)}
+              <div class="lugar-acoes">
+                <a href="${comoChegar(c)}" target="_blank" rel="noopener">Como chegar${c.aprox ? " (local aproximado)" : ""} ↗</a>
+                ${c.link ? `<a href="${c.link}" target="_blank" rel="noopener">Mais informações ↗</a>` : ""}
+              </div>
+            </article>`).join("")}
+          </div>`).join("")}
       </section>
 
       <details class="roteiro-fontes">
@@ -385,6 +468,17 @@ function roteiro() {
     marcasPerto[l.n] = L.marker([l.lat, l.lng], { icon: pinoNumero(l.n, l.grupo), title: l.nome }).addTo(mPerto)
       .bindPopup(`<div class="popup-roteiro"><b>${l.n}. ${esc(l.nome)}</b><br>${esc(l.cidade)} · ~${l.km} km<br><a href="#" data-ir="lugar-${l.n}">Ver detalhes</a></div>`);
   });
+  // Lugares diferentes (os mais longe ficam fora do enquadramento)
+  R.diferentes.forEach((d, i) => {
+    L.marker([d.lat, d.lng], { icon: pinoNumero("?", "dif"), title: d.nome }).addTo(mPerto)
+      .bindPopup(`<div class="popup-roteiro"><b>${esc(d.nome)}</b><br>${esc(d.cidade)} · ~${d.km} km<br><a href="#" data-ir="diferente-${i}">Ver detalhes</a></div>`);
+  });
+  // Campings da região (os do PETAR e do TOP 10 ficam longe deste mapa)
+  R.campings.forEach((c, i) => {
+    if (c.area === "PETAR" || c.area === "TOP 10") return;
+    L.marker([c.lat, c.lng], { icon: L.divIcon({ className: "", html: `<span class="pino-camping">⛺</span>`, iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -13] }), title: c.nome }).addTo(mPerto)
+      .bindPopup(`<div class="popup-roteiro"><b>⛺ ${esc(c.nome)}</b><br>${esc(c.cidade)}<br><a href="#" data-ir="camping-${i}">Ver detalhes</a></div>`);
+  });
   const enquadrarPerto = () => mPerto.fitBounds(L.latLng(R.centro.lat, R.centro.lng).toBounds(110000), { animate: false });
   enquadrarPerto();
 
@@ -402,15 +496,24 @@ function roteiro() {
   const enquadrarTop = () => mTop.fitBounds([...R.top.map((t) => [t.lat, t.lng]), [R.centro.lat, R.centro.lng], [P.lat, P.lng]], { padding: [30, 30], animate: false });
   enquadrarTop();
   // Logo no carregamento a página às vezes ainda tem largura 0: espera o mapa
-  // ganhar tamanho (checando a cada 0,2 s, por até 5 s) e enquadra de novo.
+  // ganhar tamanho (checando a cada 0,2 s, por até 1 min) e enquadra de novo.
   [[mPerto, enquadrarPerto], [mTop, enquadrarTop]].forEach(([m, enquadrar]) => {
-    if (m.getSize().x) return;
+    const t = m.getSize();
+    if (t.x && t.y) return;
+    // O Leaflet avisa ("resize") quando percebe o tamanho novo do mapa; a janela também.
+    m.once("resize", () => enquadrar());
+    const aoRedimensionar = () => {
+      window.removeEventListener("resize", aoRedimensionar);
+      if (!mapasRoteiro.includes(m)) return;
+      m.invalidateSize(false); enquadrar();
+    };
+    window.addEventListener("resize", aoRedimensionar);
     let tentativas = 0;
     const checar = () => {
       if (!mapasRoteiro.includes(m)) return; // saiu da tela
       const el = m.getContainer();
       if (el.clientWidth && el.clientHeight) { m.invalidateSize(false); enquadrar(); }
-      else if (++tentativas < 25) setTimeout(checar, 200);
+      else if (++tentativas < 300) setTimeout(checar, 200);
     };
     setTimeout(checar, 200);
   });
@@ -433,14 +536,32 @@ function roteiro() {
     marca.openPopup();
   }));
 
-  // Filtro por tema
+  // Filtros: tema e "esconder onde já fomos" (os dois juntos)
+  let tema = "";
+  const aplicarFiltros = () => {
+    let visiveis = 0;
+    lugares.forEach((l) => {
+      const mostra = (!tema || l.temas.includes(tema)) && !(roteiroSoNovos && albunsDe(l).length);
+      document.getElementById(`lugar-${l.n}`).hidden = !mostra;
+      const el = marcasPerto[l.n].getElement(); if (el) el.style.opacity = mostra ? 1 : 0.2;
+      if (mostra) visiveis++;
+    });
+    const fomos = lugares.filter((l) => albunsDe(l).length).length;
+    document.getElementById("roteiro-contagem").textContent =
+      `Mostrando ${visiveis} de ${lugares.length} lugares${roteiroSoNovos && fomos ? ` · ${fomos} onde já fomos ${fomos === 1 ? "está escondido" : "estão escondidos"}` : ""}.`;
+  };
   document.getElementById("filtro-temas").addEventListener("click", (ev) => {
     const b = ev.target.closest(".chip"); if (!b) return;
-    const tema = b.dataset.tema;
+    tema = b.dataset.tema;
     document.querySelectorAll("#filtro-temas .chip").forEach((c) => c.classList.toggle("ativo", c === b));
-    app.querySelectorAll(".lugar").forEach((card) => { card.hidden = !!tema && !card.dataset.temas.split(" ").includes(tema); });
-    lugares.forEach((l) => { const el = marcasPerto[l.n].getElement(); if (el) el.style.opacity = !tema || l.temas.includes(tema) ? 1 : 0.25; });
+    aplicarFiltros();
   });
+  document.getElementById("so-novos").addEventListener("change", (ev) => {
+    roteiroSoNovos = ev.target.checked;
+    try { localStorage.setItem("vida-na-natureza:so-novos", roteiroSoNovos ? "1" : ""); } catch (_) {}
+    aplicarFiltros();
+  });
+  aplicarFiltros();
 }
 
 // ---------- lista de viagens ----------
@@ -476,7 +597,7 @@ function viagem(id) {
   const especiesAqui = [...new Set(v.fotos.filter((f) => f.especie).map((f) => f.especie))];
   const tiposAqui = Object.keys(TIPOS).filter((t) => v.fotos.some((f) => f.tipo === t));
   const cad = caderneta();
-  const novas = especiesAqui.filter((k) => cad[k].primeira === v);
+  const novas = especiesAqui.filter((k) => cad[k]?.primeira === v);
 
   app.innerHTML = `
     <section class="album-capa">
@@ -513,7 +634,7 @@ function viagem(id) {
     grade.innerHTML = lista.map((f, i) => {
       const e = ESPECIES[f.especie];
       const cap = e ? `${esc(e.nome)} · <i>${esc(e.cientifico)}</i>` : esc(f.legenda || "");
-      return `<figure tabindex="0" data-i="${i}"><img src="${thumb(v, f.arquivo)}" alt="${esc(e ? e.nome : f.legenda || "")}" loading="lazy">${cap ? `<figcaption>${cap}</figcaption>` : ""}</figure>`;
+      return `<figure tabindex="0" data-i="${i}"><img src="${thumb(v, f.arquivo)}" alt="${esc(e ? e.nome : f.legenda || "")}" loading="lazy">${e && emZoo(f) ? `<span class="selo-zoo">Zoológico</span>` : ""}${cap ? `<figcaption>${cap}</figcaption>` : ""}</figure>`;
     }).join("");
     grade.querySelectorAll("figure").forEach((fig) => {
       const abrir = () => abrirLightbox(lista, +fig.dataset.i);
@@ -548,19 +669,24 @@ function especies() {
 
   const card = (k) => {
     const e = ESPECIES[k], fs = porEspecie[k], capa = capaDaEspecie(k, fs), r = cad[k];
-    const nLugares = r.viagens.length;
+    const nLugares = new Set(fs.map((f) => f.viagem)).size;
+    const zoo = fs.filter((f) => emZoo(f));
+    const primeiraZoo = zoo.reduce((a, f) => (!a || f.viagem.data < a.data ? f.viagem : a), null);
     return `
       <div class="card card-especie" tabindex="0" data-esp="${k}">
         <div class="card-foto">
           <img src="${thumb(capa.viagem, capa.arquivo)}" alt="" loading="lazy">
-          <span class="numero" title="Número na caderneta">nº ${r.numero}</span>
+          ${r ? `<span class="numero" title="Número na caderneta">nº ${r.numero}</span>` : `<span class="numero numero-zoo">Zoológico</span>`}
           ${fs.length > 1 ? `<button class="trocar-capa" data-esp="${k}" aria-label="Escolher a foto de capa de ${esc(e.nome)}">${ICONE_CAPA} Trocar capa</button>` : ""}
         </div>
         <div class="card-corpo">
           <h3>${esc(e.nome)}</h3>
           <div class="cient">${esc(e.cientifico)}</div>
           <div class="meta" style="margin-top:8px"><span class="selo ${e.confianca}">${CONFIANCA[e.confianca]}</span> · ${fs.length} ${fs.length === 1 ? "foto" : "fotos"}</div>
-          <div class="meta primeira-vez">1ª vez em ${dataBR(r.primeira.data)} · ${esc(nomeLugar(r.primeira))}</div>
+          ${r
+            ? `<div class="meta primeira-vez">1ª vez em ${dataBR(r.primeira.data)} · ${esc(nomeLugar(r.primeira))}</div>
+               ${zoo.length ? `<div class="meta">Também ${zoo.length === 1 ? "1 foto" : `${zoo.length} fotos`} no zoológico</div>` : ""}`
+            : `<div class="meta primeira-vez">Só no zoológico · ${dataBR(primeiraZoo.data)} · ${esc(nomeLugar(primeiraZoo))}</div>`}
           <div class="card-acoes">
             ${e.som ? `<button class="ouvir" type="button" data-esp="${k}" aria-label="Ouvir ${esc(e.nome)}">${ICONE_PLAY} <span>Ouvir</span></button>` : ""}
             <a class="ver-mapa" href="#mapa-${k}">${ICONE_PINO} Onde vimos${nLugares > 1 ? ` · ${nLugares} lugares` : ""}</a>
@@ -593,6 +719,9 @@ function especies() {
     .map(([n, sing, plural]) => `${n} ${(n === 1 ? sing : plural).toLowerCase()}`);
   const ultima = viagensOrdenadas()[0];
   const novasUltima = chaves.filter((k) => cad[k].primeira === ultima).length;
+  // Espécies que só foram fotografadas no zoológico ficam fora da caderneta.
+  const soZoo = Object.keys(porEspecie).filter((k) => !cad[k])
+    .sort((a, b) => ESPECIES[a].nome.localeCompare(ESPECIES[b].nome));
 
   app.innerHTML = `
     <section class="pagina">
@@ -600,7 +729,7 @@ function especies() {
       <div class="caderneta-resumo">
         <div class="caderneta-total"><b>${chaves.length}</b><span>espécies na caderneta</span></div>
         <div class="caderneta-detalhe">
-          <p>${contagem.join(" · ")}</p>
+          <p>${contagem.join(" · ")}${soZoo.length ? ` · e mais ${soZoo.length} só no zoológico` : ""}</p>
           ${novasUltima ? `<p>A última viagem, ${esc(nomeLugar(ultima))}, trouxe ${novasUltima} ${novasUltima === 1 ? "espécie nova" : "espécies novas"}.</p>` : ""}
         </div>
       </div>
@@ -610,6 +739,12 @@ function especies() {
       </div>
       <p class="intro">O número de cada bicho é a ordem em que ele entrou na caderneta. O selo mostra o quanto temos certeza da identificação: algumas só dá para confirmar com uma foto mais de perto ou com a ajuda de especialistas no iNaturalist.</p>
       ${ordemEspecies === "vimos" ? porOrdem() : porGrupo()}
+      ${soZoo.length ? `
+        <div class="viagem-novas">
+          <h2 class="sec-titulo">Vistos só no zoológico · ${soZoo.length}</h2>
+          <p>Não entram na caderneta: ela só conta bicho visto na natureza. Quando um deles aparecer solto por aí, ganha o número dele.</p>
+        </div>
+        <div class="cards">${soZoo.map(card).join("")}</div>` : ""}
     </section>`;
 
   app.querySelectorAll(".ordem button").forEach((b) => b.addEventListener("click", () => {
@@ -778,9 +913,11 @@ function mostrar() {
       <h2>${esc(e.nome)}</h2>
       <div class="cient">${esc(e.cientifico)}</div>
       <div class="fam">Família ${esc(e.familia)} · <span class="selo ${e.confianca}">${CONFIANCA[e.confianca]}</span></div>
+      <span class="origem ${emZoo(f) ? "origem-zoo" : "origem-natureza"}">${emZoo(f) ? "Fotografado no zoológico" : "Fotografado na natureza"}</span>
       ${(() => {
         const r = caderneta()[f.especie];
-        return r ? `<p class="lb-caderneta">nº ${r.numero} na caderneta · 1ª vez em ${dataBR(r.primeira.data)}, ${esc(nomeLugar(r.primeira))}${r.primeira === v ? ` <span class="novo">Novo!</span>` : ""}<br><a href="#mapa-${f.especie}">${ICONE_PINO} Onde vimos${r.viagens.length > 1 ? ` (${r.viagens.length} lugares)` : ""}</a></p>` : "";
+        if (!r) return `<p class="lb-caderneta">Ainda fora da caderneta: só foi visto no zoológico.<br><a href="#mapa-${f.especie}">${ICONE_PINO} Onde vimos</a></p>`;
+        return `<p class="lb-caderneta">nº ${r.numero} na caderneta · 1ª vez em ${dataBR(r.primeira.data)}, ${esc(nomeLugar(r.primeira))}${r.primeira === v && !emZoo(f) ? ` <span class="novo">Novo!</span>` : ""}<br><a href="#mapa-${f.especie}">${ICONE_PINO} Onde vimos${r.viagens.length > 1 ? ` (${r.viagens.length} lugares)` : ""}</a></p>`;
       })()}
       ${f.legenda ? `<p class="legenda">${esc(f.legenda)}</p>` : ""}
       <p>${esc(e.descricao)}</p>
