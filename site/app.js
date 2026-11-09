@@ -69,6 +69,7 @@ function mostrarTela(token) {
   if (!(rota in rotas)) rota = "";
   if (mapaLeaflet) { mapaLeaflet.remove(); mapaLeaflet = null; }
   mapasRoteiro.forEach((m) => m.remove()); mapasRoteiro = [];
+  painelRoteiro.aberto = false; painelRoteiro.noHistorico = false; document.body.classList.remove("rt-painel-aberto");
   fecharLightbox(true);
   pararSom();
   topo.classList.toggle("escondido", rota === "");
@@ -86,6 +87,7 @@ document.addEventListener("click", (ev) => {
   mostrarTela(token);
 });
 window.addEventListener("popstate", () => {
+  if (painelRoteiro.aberto) return painelRoteiro.fechar(true); // voltar com o painel do roteiro aberto: fecha só o painel
   if (!lb.hidden) return fecharLightbox(true);         // voltar com a foto aberta: fecha só a foto
   if (ignorarVoltar) { ignorarVoltar = false; return; } // foto fechada pelo X: a página fica como está
   mostrarTela(location.hash.slice(1));
@@ -252,18 +254,101 @@ function desenharContornos(m) {
 }
 
 // ---------- roteiro ----------
-const TEMAS = { aves: "Aves", trilha: "Trilha", agua: "Água", cultura: "Cultura", aventura: "Aventura", caverna: "Caverna" };
+// Um catálogo só (lugares, lugares diferentes, PETAR, TOP 10 e campings), com
+// busca, coleções e filtros; lista enxuta ao lado do mapa e um painel com os
+// detalhes de cada lugar.
+const TEMAS = { bichos: "Bichos", aves: "Aves", trilha: "Trilha", agua: "Água", caverna: "Caverna", aventura: "Aventura", cultura: "Cultura", diferente: "Diferente", camping: "Camping" };
+const ICONES_TEMA = { bichos: "🐾", aves: "🦜", trilha: "🥾", agua: "💧", caverna: "🔦", aventura: "🧗", cultura: "🏛️", diferente: "🏚️", camping: "⛺" };
 const SITUACAO = { gratis: "Grátis", pago: "Pago", agendar: "Agendar antes", fechado: "Sem visitação", confirmar: "A confirmar" };
 const comoChegar = (l) => `https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}`;
 // Álbuns de um lugar do roteiro: "album" pode ser um id ou uma lista de ids.
 const albunsDe = (l) => [].concat(l.album || []).filter((id) => VIAGENS.some((v) => v.id === id));
-let roteiroSoNovos = (() => { try { return !!localStorage.getItem("vida-na-natureza:so-novos"); } catch (_) { return false; } })();
+const semAcento = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const slug = (s) => semAcento(s).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+function kmEmLinhaReta(a, b) {
+  const r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+const lerLocal = (k, padrao) => { try { const v = localStorage.getItem(k); return v === null ? padrao : JSON.parse(v); } catch (_) { return padrao; } };
+const salvarLocal = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) { /* navegador sem armazenamento */ } };
+
+// Temas dos destinos do TOP 10 (no roteiro.js eles têm só texto).
+const TEMAS_TOP = {
+  "Pantanal Norte": ["bichos", "aves", "agua"],
+  "Bonito e Serra da Bodoquena": ["agua", "aventura", "aves"],
+  "Serra da Canastra": ["bichos", "trilha", "agua"],
+  "Parque Estadual Intervales": ["aves", "trilha"],
+  "Parque Estadual Carlos Botelho": ["bichos", "trilha"],
+  "Ubatuba e Serra do Mar": ["aves", "trilha", "agua"],
+  "Parque Nacional do Itatiaia": ["trilha", "aventura", "aves"],
+  "Chapada dos Veadeiros": ["trilha", "agua"],
+  "Chapada Diamantina": ["trilha", "aventura", "agua"],
+  "Cristalino, sul da Amazônia": ["aves", "bichos"],
+};
+
+// Distância em faixas de tempo de carro (km de estrada a partir de Bauru)
+const FAIXAS = {
+  perto: ["Até 1h de carro", 0, 70],
+  bate: ["Bate-volta (até 2h30)", 0, 170],
+  fds: ["Fim de semana", 170, 650],
+  longe: ["Viagem grande", 650, Infinity],
+};
+
+let catalogoRoteiro = null;
+function catalogo() {
+  if (catalogoRoteiro) return catalogoRoteiro;
+  const R = ROTEIRO, itens = [];
+  const add = (l, extra) => {
+    const it = { ...l, ...extra };
+    it.id = slug(it.nome);
+    it.km = it.km ?? Math.round((kmEmLinhaReta(R.centro, it) * 1.25) / 10) * 10;
+    it.temas = it.temas || [];
+    it.albuns = albunsDe(it);
+    it.gratis = it.situacao === "gratis" || /^gr[aá]tis/i.test(it.preco || "");
+    it.busca = semAcento([it.nome, it.cidade, it.resumo, it.bichos, it.dica, it.preco, it.temas.map((t) => TEMAS[t]).join(" ")].join(" "));
+    itens.push(it);
+  };
+  R.perto.forEach((l) => add(l, { categoria: "lugar" }));
+  R.alem.forEach((l) => add(l, { categoria: "lugar" }));
+  R.diferentes.forEach((l) => add(l, { categoria: "diferente", temas: ["diferente"], situacao: "gratis", preco: l.preco || "Grátis (ver de fora)" }));
+  add(R.petar, { categoria: "petar", temas: ["caverna", "aventura", "trilha", "aves"], preco: "R$ 19 por núcleo + monitor", situacao: "pago" });
+  R.top.forEach((t, i) => add(t, { categoria: "top", posicao: i + 1, cidade: t.onde, temas: TEMAS_TOP[t.nome] || ["trilha"], resumo: t.bichos, preco: t.custo, situacao: "pago", aviao: /^voo/i.test(t.como) }));
+  R.campings.forEach((c) => add(c, { categoria: "camping", temas: ["camping"], situacao: /^gr[aá]tis/i.test(c.preco) ? "gratis" : "confirmar" }));
+  catalogoRoteiro = itens;
+  return itens;
+}
+
+function tempoDeCarro(it) {
+  if (it.aviao) return "de avião";
+  if (it.km <= 5) return "na cidade";
+  const min = Math.max(10, Math.round(((it.km / 75) * 60) / 10) * 10);
+  if (min < 60) return `~${min} min`;
+  const h = Math.floor(min / 60), resto = min % 60;
+  return `~${h}h${resto >= 30 ? "30" : ""}`;
+}
+const iconeDe = (it) => ICONES_TEMA[it.temas[0]] || "📍";
+
+const COLECOES = [
+  { id: "domingo", nome: "Bate-volta de domingo", icone: "☀️", filtro: (it) => it.km <= 170 && it.categoria !== "camping" },
+  { id: "bichos", nome: "Para ver bichos", icone: "🦜", filtro: (it) => it.temas.includes("aves") || it.temas.includes("bichos") },
+  { id: "estranhos", nome: "Lugares estranhos", icone: "🏚️", filtro: (it) => it.categoria === "diferente" },
+  { id: "acampar", nome: "Onde acampar", icone: "⛺", filtro: (it) => it.categoria === "camping" },
+  { id: "sonhos", nome: "Viagem dos sonhos", icone: "✈️", filtro: (it) => it.categoria === "top" || it.categoria === "petar", ordem: (a, b) => (a.posicao || 0) - (b.posicao || 0) },
+  { id: "comecar", nome: "Por onde começar", icone: "🧭", filtro: (it) => ["petar", "parque-estadual-intervales", "serra-da-canastra", "pantanal-norte"].includes(it.id), ordem: (a, b) => a.km - b.km },
+];
+
+const filtroRoteiro = { q: "", colecao: "", faixa: "", tema: "", gratis: false, soQueroIr: false, ordem: "perto", modo: "lista" };
+let esconderFomos = lerLocal("vida-na-natureza:esconder-fomos", false);
+let queroIr = new Set(lerLocal("vida-na-natureza:quero-ir", []));
+// Painel de detalhes: abrir cria um passo no histórico, e o "voltar" fecha só o painel.
+const painelRoteiro = { aberto: false, noHistorico: false, fechar: null };
 
 // "O que o pessoal fala": resumo das opiniões encontradas, com as fontes.
-function blocoOpiniao(a) {
+function blocoOpiniao(a, aberto = false) {
   if (!a) return "";
   return `
-    <details class="opiniao">
+    <details class="opiniao"${aberto ? " open" : ""}>
       <summary>O que o pessoal fala${a.nota ? ` · <b>${esc(a.nota)}</b>` : ""}</summary>
       ${a.resumo ? `<p>${esc(a.resumo)}</p>` : ""}
       ${a.bom?.length ? `<ul class="op-bom">${a.bom.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
@@ -275,293 +360,322 @@ function blocoOpiniao(a) {
 function roteiro() {
   document.title = "Roteiro · Vida na Natureza";
   document.documentElement.style.setProperty("--topo-h", topo.offsetHeight + "px");
-  const R = ROTEIRO;
-  const lugares = [...R.perto.map((l) => ({ ...l, grupo: "perto" })), ...R.alem.map((l) => ({ ...l, grupo: "alem" }))]
-    .map((l, i) => ({ ...l, n: i + 1 }));
-  const temasUsados = Object.keys(TEMAS).filter((t) => lugares.some((l) => l.temas.includes(t)));
+  const R = ROTEIRO, itens = catalogo(), F = filtroRoteiro;
+  const temasUsados = Object.keys(TEMAS).filter((t) => itens.some((it) => it.temas.includes(t)));
 
-  const cardLugar = (l) => `
-    <article class="lugar${albunsDe(l).length ? " visitado" : ""}" id="lugar-${l.n}" data-temas="${l.temas.join(" ")}">
-      <div class="lugar-cab">
-        <span class="lugar-n ${l.grupo}">${l.n}</span>
-        <div class="lugar-titulo">
-          <h3>${esc(l.nome)}</h3>
-          <div class="meta">${esc(l.cidade)} · ~${l.km} km de Bauru</div>
-        </div>
-        <span class="situacao s-${l.situacao}">${SITUACAO[l.situacao]}</span>
-      </div>
-      <p>${esc(l.resumo)}</p>
-      ${l.dica ? `<p class="lugar-dica">${esc(l.dica)}</p>` : ""}
-      <dl class="lugar-info">
-        <dt>Preço</dt><dd>${esc(l.preco)}</dd>
-        ${l.contato ? `<dt>Contato</dt><dd>${esc(l.contato)}</dd>` : ""}
-      </dl>
-      ${blocoOpiniao(l.avaliacao)}
-      <div class="lugar-temas">${l.temas.map((t) => `<span>${TEMAS[t]}</span>`).join("")}</div>
-      <div class="lugar-acoes">
-        <button type="button" class="ver-no-mapa" data-n="${l.n}">${ICONE_PINO} Ver no mapa</button>
-        <a href="${comoChegar(l)}" target="_blank" rel="noopener">Como chegar ↗</a>
-        ${l.link ? `<a href="${l.link}" target="_blank" rel="noopener">Mais informações ↗</a>` : ""}
-        ${albunsDe(l).map((id) => `<a href="#${id}" class="ja-fomos">Já fomos: ${esc((VIAGENS.find((v) => v.id === id) || {}).titulo || "ver o álbum")}</a>`).join("")}
-      </div>
-    </article>`;
-
-  const P = R.petar;
   app.innerHTML = `
-    <section class="pagina roteiro">
+    <section class="pagina roteiro2">
       <h1>Roteiro</h1>
-      <p class="intro">Ideias para as próximas saídas, pensadas em bichos, trilha e aventura. Pesquisa de novembro de 2026: preços mudam, então confirmem antes de ir.</p>
-      <nav class="roteiro-secoes" aria-label="Partes do roteiro">
-        <button type="button" data-alvo="sec-perto">Perto de Bauru</button>
-        <button type="button" data-alvo="sec-diferentes">Lugares diferentes</button>
-        <button type="button" data-alvo="sec-petar">PETAR</button>
-        <button type="button" data-alvo="sec-top">TOP 10</button>
-        <button type="button" data-alvo="sec-camping">Onde acampar</button>
-      </nav>
+      <p class="intro">Lugares para as próximas saídas: perto de Bauru, estranhos, campings e o TOP 10 do Brasil. Pesquisa de novembro de 2026: preços mudam, então confirmem antes de ir.</p>
 
-      <section id="sec-perto" class="roteiro-bloco">
-        <h2>Perto de Bauru</h2>
-        <p class="roteiro-sub">Num raio de 50 km a região é quase toda cana e pasto, e há poucos parques abertos. O que vale são as matas que guardam bichos, o rio Tietê e a Terra Indígena Araribá. Os pontos em laranja ficam um pouco mais longe, até ~2h30 de carro.</p>
-        <div class="roteiro-mapa"><div id="mapa-perto"></div></div>
-        <div class="roteiro-filtros">
-          <div class="filtros" id="filtro-temas">
-            <button class="chip ativo" data-tema="">Todos</button>
-            ${temasUsados.map((t) => `<button class="chip" data-tema="${t}">${TEMAS[t]}</button>`).join("")}
-          </div>
-          <label class="so-novos"><input type="checkbox" id="so-novos" ${roteiroSoNovos ? "checked" : ""}> Esconder onde já fomos</label>
-        </div>
-        <p class="roteiro-contagem" id="roteiro-contagem"></p>
-        <h3 class="sec-titulo">Até 50 km</h3>
-        <div class="lugares">${lugares.filter((l) => l.grupo === "perto").map(cardLugar).join("")}</div>
-        <h3 class="sec-titulo" style="margin-top:28px">Um pouco além (até ~2h30)</h3>
-        <div class="lugares">${lugares.filter((l) => l.grupo === "alem").map(cardLugar).join("")}</div>
-      </section>
+      <div class="rt-busca">
+        <label class="rt-campo">
+          <span aria-hidden="true">🔍</span>
+          <input id="rt-q" type="search" placeholder="Busque: cachoeira, onça, grátis, Botucatu…" autocomplete="off" value="${esc(F.q)}">
+        </label>
+        <button type="button" id="rt-quero" class="rt-quero" aria-pressed="${F.soQueroIr}">❤ Quero ir · <b id="rt-quero-n">${queroIr.size}</b></button>
+      </div>
 
-      <section id="sec-diferentes" class="roteiro-bloco">
-        <h2>Lugares diferentes</h2>
-        <p class="roteiro-sub">Abandonados, curiosos ou com lenda: igreja perdida no mato, estações de trem fantasmas, dinossauros e uma vila deserta. Aparecem em roxo no mapa de perto de Bauru.</p>
-        <p class="aviso-urbex">Muitos são particulares, da União ou estão caindo aos pedaços. Vejam de fora, vão de dia, não entrem em construção em ruína e não levem nada de lá.</p>
-        <div class="lugares">${R.diferentes.map((d, i) => `
-          <article class="lugar diferente" id="diferente-${i}">
-            <div class="lugar-cab">
-              <span class="lugar-n dif">?</span>
-              <div class="lugar-titulo">
-                <h3>${esc(d.nome)}</h3>
-                <div class="meta">${esc(d.cidade)} · ~${d.km} km de Bauru</div>
-              </div>
-              ${d.preco ? `<span class="situacao s-gratis">${esc(d.preco)}</span>` : ""}
-            </div>
-            <p>${esc(d.resumo)}</p>
-            ${d.dica ? `<p class="lugar-dica">${esc(d.dica)}</p>` : ""}
-            ${d.contato ? `<dl class="lugar-info"><dt>Contato</dt><dd>${esc(d.contato)}</dd></dl>` : ""}
-            <div class="lugar-acoes">
-              <a href="${comoChegar(d)}" target="_blank" rel="noopener">Como chegar${d.aprox ? " (local aproximado)" : ""} ↗</a>
-              ${d.link ? `<a href="${d.link}" target="_blank" rel="noopener">Mais informações ↗</a>` : ""}
-            </div>
-          </article>`).join("")}
-        </div>
-      </section>
+      <div class="rt-colecoes" id="rt-colecoes">
+        ${COLECOES.map((c) => `<button type="button" data-col="${c.id}" aria-pressed="${F.colecao === c.id}">${c.icone} ${c.nome}</button>`).join("")}
+      </div>
 
-      <section id="sec-petar" class="roteiro-bloco petar">
-        <div class="petar-cab">
-          <div>
-            <div class="sec-titulo">Destaque</div>
-            <h2>${esc(P.nome)} <small>${esc(P.completo)}</small></h2>
-            <div class="meta">${esc(P.cidade)} · ~${P.km} km · ${esc(P.horas)}</div>
-          </div>
-          <div class="lugar-acoes">
-            <a href="${comoChegar(P)}" target="_blank" rel="noopener">Como chegar ↗</a>
-            <a href="${P.link}" target="_blank" rel="noopener">Ingressos ↗</a>
-            ${albunsDe(P).map((id) => `<a href="#${id}" class="ja-fomos">Já fomos: ${esc(VIAGENS.find((v) => v.id === id).titulo)}</a>`).join("")}
-          </div>
-        </div>
-        <p class="petar-resumo">${esc(P.resumo)}</p>
-        ${blocoOpiniao(P.avaliacao)}
-        <div class="petar-grade">
-          <div>
-            <h3 class="sec-titulo">Núcleos</h3>
-            <dl class="petar-lista">${P.nucleos.map(([n, d]) => `<dt>${esc(n)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
-          </div>
-          <div>
-            <h3 class="sec-titulo">Quanto custa (2026)</h3>
-            <dl class="petar-lista">${P.precos.map(([n, d]) => `<dt>${esc(n)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
-            <h3 class="sec-titulo" style="margin-top:18px">Dicas</h3>
-            <ul class="petar-dicas">${P.dicas.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>
-          </div>
-        </div>
-      </section>
+      <div class="rt-filtros">
+        <select id="rt-faixa" aria-label="Distância">
+          <option value="">Qualquer distância</option>
+          ${Object.entries(FAIXAS).map(([k, [n]]) => `<option value="${k}"${F.faixa === k ? " selected" : ""}>${n}</option>`).join("")}
+        </select>
+        <select id="rt-tema" aria-label="Tipo de lugar">
+          <option value="">Todos os tipos</option>
+          ${temasUsados.map((t) => `<option value="${t}"${F.tema === t ? " selected" : ""}>${ICONES_TEMA[t]} ${TEMAS[t]}</option>`).join("")}
+        </select>
+        <label class="rt-check"><input type="checkbox" id="rt-gratis"${F.gratis ? " checked" : ""}> Grátis</label>
+        <label class="rt-check"><input type="checkbox" id="rt-fomos"${esconderFomos ? " checked" : ""}> Esconder onde já fomos</label>
+        <select id="rt-ordem" aria-label="Ordenar">
+          <option value="perto"${F.ordem === "perto" ? " selected" : ""}>Mais perto</option>
+          <option value="nome"${F.ordem === "nome" ? " selected" : ""}>A a Z</option>
+        </select>
+      </div>
 
-      <section id="sec-top" class="roteiro-bloco">
-        <h2>TOP 10 para ir um dia</h2>
-        <p class="roteiro-sub">Os lugares mais incríveis do Brasil para bichos, trilha e aventura, do mais especial para vocês ao mais distante do bolso.</p>
-        <div class="roteiro-mapa"><div id="mapa-top"></div></div>
-        <ol class="top10">
-          ${R.top.map((t, i) => `
-            <li id="top-${i + 1}">
-              <span class="top-n">${i + 1}</span>
-              <div class="top-corpo">
-                <h3>${esc(t.nome)} <small>${esc(t.onde)}</small></h3>
-                <p class="top-bichos">${esc(t.bichos)}</p>
-                <dl class="lugar-info">
-                  <dt>Como ir</dt><dd>${esc(t.como)}</dd>
-                  <dt>Custo</dt><dd>${esc(t.custo)}</dd>
-                </dl>
-                ${blocoOpiniao(t.avaliacao)}
-                <div class="lugar-acoes">
-                  <button type="button" class="ver-no-mapa" data-top="${i + 1}">${ICONE_PINO} Ver no mapa</button>
-                  <a href="${comoChegar(t)}" target="_blank" rel="noopener">Como chegar ↗</a>
-                  ${albunsDe(t).map((id) => `<a href="#${id}" class="ja-fomos">Já fomos: ${esc(VIAGENS.find((v) => v.id === id).titulo)}</a>`).join("")}
-                </div>
-              </div>
-            </li>`).join("")}
-        </ol>
-        <div class="sugestao">
-          <h3>Se fosse para escolher três</h3>
-          <dl>${R.sugestao.map(([q, o]) => `<dt>${esc(q)}</dt><dd>${esc(o)}</dd>`).join("")}</dl>
+      <div class="rt-status">
+        <span id="rt-contagem"></span>
+        <button type="button" id="rt-limpar" class="rt-limpar" hidden>Limpar filtros</button>
+        <div class="rt-modos" role="group" aria-label="Ver como">
+          <button type="button" data-modo="lista" aria-pressed="${F.modo === "lista"}">Lista</button>
+          <button type="button" data-modo="mapa" aria-pressed="${F.modo === "mapa"}">Mapa</button>
         </div>
-      </section>
+      </div>
 
-      <section id="sec-camping" class="roteiro-bloco">
-        <h2>Onde acampar</h2>
-        <p class="roteiro-sub">Campings perto dos lugares do roteiro. Quase todos os preços vêm de relatos antigos de viajantes, então liguem antes. Os campings da região também aparecem como barraquinhas no mapa de perto de Bauru.</p>
-        ${[...new Set(R.campings.map((c) => c.area))].map((area) => `
-          <h3 class="sec-titulo" style="margin-top:22px">${esc(area)}</h3>
-          <div class="lugares">${R.campings.map((c, i) => ({ ...c, i })).filter((c) => c.area === area).map((c) => `
-            <article class="lugar camping" id="camping-${c.i}">
-              <div class="lugar-cab">
-                <span class="lugar-n camping-icone" aria-hidden="true">⛺</span>
-                <div class="lugar-titulo">
-                  <h3>${esc(c.nome)}</h3>
-                  <div class="meta">${esc(c.cidade)}</div>
-                </div>
-              </div>
-              <p>${esc(c.resumo)}</p>
-              ${c.dica ? `<p class="lugar-dica">${esc(c.dica)}</p>` : ""}
-              <dl class="lugar-info"><dt>Preço</dt><dd>${esc(c.preco)}</dd></dl>
-              ${blocoOpiniao(c.avaliacao)}
-              <div class="lugar-acoes">
-                <a href="${comoChegar(c)}" target="_blank" rel="noopener">Como chegar${c.aprox ? " (local aproximado)" : ""} ↗</a>
-                ${c.link ? `<a href="${c.link}" target="_blank" rel="noopener">Mais informações ↗</a>` : ""}
-              </div>
-            </article>`).join("")}
-          </div>`).join("")}
-      </section>
+      <div class="rt-corpo modo-${F.modo}" id="rt-corpo">
+        <ol class="rt-lista" id="rt-lista"></ol>
+        <div class="rt-mapa"><div id="rt-mapa"></div></div>
+      </div>
 
       <details class="roteiro-fontes">
         <summary>Fontes da pesquisa</summary>
         <ul>${R.fontes.map(([n, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${esc(n)}</a></li>`).join("")}</ul>
       </details>
+
+      <div class="rt-fundo" id="rt-fundo" hidden></div>
+      <aside class="rt-painel" id="rt-painel" hidden aria-label="Detalhes do lugar"></aside>
     </section>`;
 
-  // Atalhos para as partes da página
-  app.querySelectorAll(".roteiro-secoes button").forEach((b) => b.addEventListener("click", () =>
-    document.getElementById(b.dataset.alvo).scrollIntoView({ behavior: "smooth", block: "start" })));
+  const lista = document.getElementById("rt-lista");
+  const corpo = document.getElementById("rt-corpo");
 
-  // Mapa de perto: círculo de 50 km em volta de Bauru e um pino numerado por lugar
-  const pinoNumero = (n, classe) => L.divIcon({ className: "", html: `<span class="pino-num ${classe}">${n}</span>`, iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -14] });
-  const mPerto = novoMapa("mapa-perto", { scrollWheelZoom: false });
-  mapasRoteiro.push(mPerto);
-  L.circle([R.centro.lat, R.centro.lng], { radius: 50000, color: "#3d5a3a", weight: 1.5, dashArray: "6 6", fillOpacity: 0.04 }).addTo(mPerto);
-  L.marker([R.centro.lat, R.centro.lng], { icon: L.divIcon({ className: "", html: `<span class="pino-centro">Bauru</span>`, iconSize: [60, 22], iconAnchor: [30, 11] }), interactive: false }).addTo(mPerto);
-  const marcasPerto = {};
-  lugares.forEach((l) => {
-    marcasPerto[l.n] = L.marker([l.lat, l.lng], { icon: pinoNumero(l.n, l.grupo), title: l.nome }).addTo(mPerto)
-      .bindPopup(`<div class="popup-roteiro"><b>${l.n}. ${esc(l.nome)}</b><br>${esc(l.cidade)} · ~${l.km} km<br><a href="#" data-ir="lugar-${l.n}">Ver detalhes</a></div>`);
-  });
-  // Lugares diferentes (os mais longe ficam fora do enquadramento)
-  R.diferentes.forEach((d, i) => {
-    L.marker([d.lat, d.lng], { icon: pinoNumero("?", "dif"), title: d.nome }).addTo(mPerto)
-      .bindPopup(`<div class="popup-roteiro"><b>${esc(d.nome)}</b><br>${esc(d.cidade)} · ~${d.km} km<br><a href="#" data-ir="diferente-${i}">Ver detalhes</a></div>`);
-  });
-  // Campings da região (os do PETAR e do TOP 10 ficam longe deste mapa)
-  R.campings.forEach((c, i) => {
-    if (c.area === "PETAR" || c.area === "TOP 10") return;
-    L.marker([c.lat, c.lng], { icon: L.divIcon({ className: "", html: `<span class="pino-camping">⛺</span>`, iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -13] }), title: c.nome }).addTo(mPerto)
-      .bindPopup(`<div class="popup-roteiro"><b>⛺ ${esc(c.nome)}</b><br>${esc(c.cidade)}<br><a href="#" data-ir="camping-${i}">Ver detalhes</a></div>`);
-  });
-  const enquadrarPerto = () => mPerto.fitBounds(L.latLng(R.centro.lat, R.centro.lng).toBounds(110000), { animate: false });
-  enquadrarPerto();
+  // ---- mapa ----
+  const mapa = novoMapa("rt-mapa", { scrollWheelZoom: true });
+  mapasRoteiro.push(mapa);
+  L.marker([R.centro.lat, R.centro.lng], { icon: L.divIcon({ className: "", html: `<span class="pino-centro">Bauru</span>`, iconSize: [60, 22], iconAnchor: [30, 11] }), interactive: false, zIndexOffset: -1000 }).addTo(mapa);
+  const camada = L.layerGroup().addTo(mapa);
+  let visiveis = [], pinoDe = {};
 
-  // Mapa do TOP 10, com o PETAR em destaque
-  const mTop = novoMapa("mapa-top", { scrollWheelZoom: false });
-  mapasRoteiro.push(mTop);
-  const marcasTop = {};
-  R.top.forEach((t, i) => {
-    marcasTop[i + 1] = L.marker([t.lat, t.lng], { icon: pinoNumero(i + 1, "top"), title: t.nome }).addTo(mTop)
-      .bindPopup(`<div class="popup-roteiro"><b>${i + 1}. ${esc(t.nome)}</b><br>${esc(t.onde)}<br><a href="#" data-ir="top-${i + 1}">Ver detalhes</a></div>`);
-  });
-  L.marker([P.lat, P.lng], { icon: pinoNumero("P", "petar"), title: "PETAR" }).addTo(mTop)
-    .bindPopup(`<div class="popup-roteiro"><b>PETAR</b><br>${esc(P.cidade)}<br><a href="#" data-ir="sec-petar">Ver detalhes</a></div>`);
-  L.marker([R.centro.lat, R.centro.lng], { icon: L.divIcon({ className: "", html: `<span class="pino-centro">Bauru</span>`, iconSize: [60, 22], iconAnchor: [30, 11] }), interactive: false }).addTo(mTop);
-  const enquadrarTop = () => mTop.fitBounds([...R.top.map((t) => [t.lat, t.lng]), [R.centro.lat, R.centro.lng], [P.lat, P.lng]], { padding: [30, 30], animate: false });
-  enquadrarTop();
-  // Logo no carregamento a página às vezes ainda tem largura 0: espera o mapa
-  // ganhar tamanho (checando a cada 0,2 s, por até 1 min) e enquadra de novo.
-  [[mPerto, enquadrarPerto], [mTop, enquadrarTop]].forEach(([m, enquadrar]) => {
-    const t = m.getSize();
-    if (t.x && t.y) return;
-    // O Leaflet avisa ("resize") quando percebe o tamanho novo do mapa; a janela também.
-    m.once("resize", () => enquadrar());
-    const aoRedimensionar = () => {
-      window.removeEventListener("resize", aoRedimensionar);
-      if (!mapasRoteiro.includes(m)) return;
-      m.invalidateSize(false); enquadrar();
-    };
-    window.addEventListener("resize", aoRedimensionar);
+  function desenharPinos() {
+    camada.clearLayers(); pinoDe = {};
+    const grupos = [];
+    visiveis.forEach((it) => {
+      const p = mapa.latLngToLayerPoint([it.lat, it.lng]);
+      const g = grupos.find((g) => g.p.distanceTo(p) < 34);
+      if (g) g.itens.push(it); else grupos.push({ p, itens: [it] });
+    });
+    grupos.forEach(({ itens: gi }) => {
+      const lat = gi.reduce((s, it) => s + it.lat, 0) / gi.length, lng = gi.reduce((s, it) => s + it.lng, 0) / gi.length;
+      if (gi.length === 1) {
+        const it = gi[0];
+        const m = L.marker([it.lat, it.lng], {
+          icon: L.divIcon({ className: "", html: `<span class="rt-pino cat-${it.categoria}">${iconeDe(it)}</span>`, iconSize: [32, 32], iconAnchor: [16, 16] }),
+          title: it.nome, riseOnHover: true,
+        }).addTo(camada);
+        m.on("click", () => abrirPainel(it.id));
+        pinoDe[it.id] = m;
+        return;
+      }
+      const m = L.marker([lat, lng], { icon: L.divIcon({ className: "", html: `<span class="rt-pino rt-grupo">${gi.length}</span>`, iconSize: [34, 34], iconAnchor: [17, 17] }), title: `${gi.length} lugares` }).addTo(camada);
+      m.on("click", () => {
+        const limites = L.latLngBounds(gi.map((it) => [it.lat, it.lng]));
+        // Lugares no mesmo ponto: em vez de aproximar, lista os nomes.
+        if (mapa.getZoom() >= 13 || mapa.getBoundsZoom(limites, false, L.point(80, 80)) <= mapa.getZoom()) {
+          m.bindPopup(`<div class="popup-roteiro">${gi.map((it) => `<button type="button" class="rt-pop-item" data-id="${it.id}">${iconeDe(it)} ${esc(it.nome)}</button>`).join("")}</div>`).openPopup();
+        } else {
+          mapa.flyToBounds(limites, { padding: [60, 60], maxZoom: 14, duration: 0.6 });
+        }
+      });
+    });
+  }
+  mapa.on("zoomend", desenharPinos);
+  mapa.on("popupopen", (ev) => ev.popup.getElement().querySelectorAll(".rt-pop-item").forEach((b) =>
+    b.addEventListener("click", () => { mapa.closePopup(); abrirPainel(b.dataset.id); })));
+
+  function enquadrar() {
+    if (!visiveis.length) return;
+    // Sem filtro nenhum, começa pela região de Bauru; os destinos longe ficam a um zoom de distância.
+    const semFiltro = !(F.q || F.colecao || F.faixa || F.tema || F.gratis || F.soQueroIr || esconderFomos);
+    const base = semFiltro ? visiveis.filter((it) => it.km <= 170) : visiveis;
+    const pts = (base.length ? base : visiveis).map((it) => [it.lat, it.lng]);
+    if (pts.length === 1) mapa.setView(pts[0], 11, { animate: false });
+    else mapa.fitBounds(pts, { padding: [40, 40], maxZoom: 12, animate: false });
+    desenharPinos();
+  }
+  // Logo no carregamento a página às vezes ainda tem largura 0: reenquadra quando o mapa ganhar tamanho.
+  const esperarTamanho = () => {
     let tentativas = 0;
     const checar = () => {
-      if (!mapasRoteiro.includes(m)) return; // saiu da tela
-      const el = m.getContainer();
-      if (el.clientWidth && el.clientHeight) { m.invalidateSize(false); enquadrar(); }
+      if (!mapasRoteiro.includes(mapa)) return;
+      const el = mapa.getContainer();
+      if (el.clientWidth && el.clientHeight) { mapa.invalidateSize(false); enquadrar(); }
       else if (++tentativas < 300) setTimeout(checar, 200);
     };
     setTimeout(checar, 200);
-  });
-
-  // "Ver detalhes" no balão rola até o card; "Ver no mapa" no card abre o balão
-  [mPerto, mTop].forEach((m) => m.on("popupopen", (ev) => {
-    const a = ev.popup.getElement().querySelector("[data-ir]");
-    a?.addEventListener("click", (e) => {
-      e.preventDefault(); e.stopPropagation();
-      m.closePopup();
-      const alvo = document.getElementById(a.dataset.ir);
-      alvo.scrollIntoView({ behavior: "smooth", block: "center" });
-      alvo.classList.add("destaque"); setTimeout(() => alvo.classList.remove("destaque"), 1600);
-    });
-  }));
-  app.querySelectorAll(".ver-no-mapa").forEach((b) => b.addEventListener("click", () => {
-    const [m, marca, zoom] = b.dataset.n ? [mPerto, marcasPerto[b.dataset.n], 12] : [mTop, marcasTop[b.dataset.top], 7];
-    m.getContainer().scrollIntoView({ behavior: "smooth", block: "center" });
-    m.setView(marca.getLatLng(), Math.max(m.getZoom(), zoom));
-    marca.openPopup();
-  }));
-
-  // Filtros: tema e "esconder onde já fomos" (os dois juntos)
-  let tema = "";
-  const aplicarFiltros = () => {
-    let visiveis = 0;
-    lugares.forEach((l) => {
-      const mostra = (!tema || l.temas.includes(tema)) && !(roteiroSoNovos && albunsDe(l).length);
-      document.getElementById(`lugar-${l.n}`).hidden = !mostra;
-      const el = marcasPerto[l.n].getElement(); if (el) el.style.opacity = mostra ? 1 : 0.2;
-      if (mostra) visiveis++;
-    });
-    const fomos = lugares.filter((l) => albunsDe(l).length).length;
-    document.getElementById("roteiro-contagem").textContent =
-      `Mostrando ${visiveis} de ${lugares.length} lugares${roteiroSoNovos && fomos ? ` · ${fomos} onde já fomos ${fomos === 1 ? "está escondido" : "estão escondidos"}` : ""}.`;
   };
-  document.getElementById("filtro-temas").addEventListener("click", (ev) => {
-    const b = ev.target.closest(".chip"); if (!b) return;
-    tema = b.dataset.tema;
-    document.querySelectorAll("#filtro-temas .chip").forEach((c) => c.classList.toggle("ativo", c === b));
-    aplicarFiltros();
+
+  // ---- filtros e lista ----
+  function filtrar() {
+    const col = COLECOES.find((c) => c.id === F.colecao);
+    const termos = semAcento(F.q).split(/\s+/).filter(Boolean);
+    let r = itens.filter((it) =>
+      (!col || col.filtro(it)) &&
+      (!F.faixa || (it.km >= FAIXAS[F.faixa][1] && it.km <= FAIXAS[F.faixa][2])) &&
+      (!F.tema || it.temas.includes(F.tema)) &&
+      (!F.gratis || it.gratis) &&
+      (!esconderFomos || !it.albuns.length) &&
+      (!F.soQueroIr || queroIr.has(it.id)) &&
+      termos.every((t) => it.busca.includes(t)));
+    const ordem = F.ordem === "nome" ? (a, b) => a.nome.localeCompare(b.nome) : col?.ordem || ((a, b) => a.km - b.km);
+    return r.sort(ordem);
+  }
+
+  function atualizar(reenquadrar = true) {
+    visiveis = filtrar();
+    lista.innerHTML = visiveis.length
+      ? visiveis.map((it) => `
+        <li>
+          <button type="button" class="rt-item" data-id="${it.id}">
+            <span class="rt-ic" aria-hidden="true">${iconeDe(it)}</span>
+            <span class="rt-txt">
+              <b>${esc(it.nome)}</b>
+              <small>${esc(it.cidade)} · ${tempoDeCarro(it)}${it.categoria === "top" ? ` · TOP ${it.posicao}` : ""}</small>
+            </span>
+            <span class="rt-dir">
+              <span class="rt-sit s-${it.situacao}">${it.gratis ? "Grátis" : SITUACAO[it.situacao]}</span>
+              ${it.albuns.length ? `<span class="rt-fomos">✓ Já fomos</span>` : ""}
+              ${queroIr.has(it.id) ? `<span class="rt-coracao" title="Quero ir">❤</span>` : ""}
+            </span>
+          </button>
+        </li>`).join("")
+      : `<li class="rt-vazio">Nada encontrado com esses filtros.<br><button type="button" class="botao" id="rt-limpar-vazio">Limpar filtros</button></li>`;
+
+    const algumFiltro = F.q || F.colecao || F.faixa || F.tema || F.gratis || F.soQueroIr || esconderFomos;
+    document.getElementById("rt-contagem").textContent =
+      `${visiveis.length} ${visiveis.length === 1 ? "lugar" : "lugares"}${algumFiltro ? ` de ${itens.length}` : ""}`;
+    document.getElementById("rt-limpar").hidden = !algumFiltro;
+    document.getElementById("rt-limpar-vazio")?.addEventListener("click", limparFiltros);
+    document.querySelectorAll("#rt-colecoes button").forEach((b) => b.setAttribute("aria-pressed", F.colecao === b.dataset.col));
+    document.getElementById("rt-quero").setAttribute("aria-pressed", F.soQueroIr);
+    document.getElementById("rt-quero-n").textContent = queroIr.size;
+    if (reenquadrar) enquadrar(); else desenharPinos();
+  }
+
+  function limparFiltros() {
+    Object.assign(F, { q: "", colecao: "", faixa: "", tema: "", gratis: false, soQueroIr: false });
+    esconderFomos = false; salvarLocal("vida-na-natureza:esconder-fomos", false);
+    document.getElementById("rt-q").value = "";
+    document.getElementById("rt-faixa").value = "";
+    document.getElementById("rt-tema").value = "";
+    document.getElementById("rt-gratis").checked = false;
+    document.getElementById("rt-fomos").checked = false;
+    atualizar();
+  }
+
+  // Passar o mouse num item destaca o pino dele no mapa.
+  lista.addEventListener("mouseover", (ev) => {
+    const b = ev.target.closest(".rt-item");
+    document.querySelectorAll(".rt-pino.ativo").forEach((p) => p.classList.remove("ativo"));
+    if (b) pinoDe[b.dataset.id]?.getElement()?.querySelector(".rt-pino")?.classList.add("ativo");
   });
-  document.getElementById("so-novos").addEventListener("change", (ev) => {
-    roteiroSoNovos = ev.target.checked;
-    try { localStorage.setItem("vida-na-natureza:so-novos", roteiroSoNovos ? "1" : ""); } catch (_) {}
-    aplicarFiltros();
+  lista.addEventListener("mouseleave", () => document.querySelectorAll(".rt-pino.ativo").forEach((p) => p.classList.remove("ativo")));
+  lista.addEventListener("click", (ev) => { const b = ev.target.closest(".rt-item"); if (b) abrirPainel(b.dataset.id); });
+
+  let espera;
+  document.getElementById("rt-q").addEventListener("input", (ev) => {
+    clearTimeout(espera);
+    espera = setTimeout(() => { F.q = ev.target.value; atualizar(); }, 180);
   });
-  aplicarFiltros();
+  document.getElementById("rt-colecoes").addEventListener("click", (ev) => {
+    const b = ev.target.closest("button"); if (!b) return;
+    F.colecao = F.colecao === b.dataset.col ? "" : b.dataset.col;
+    atualizar();
+  });
+  document.getElementById("rt-faixa").addEventListener("change", (ev) => { F.faixa = ev.target.value; atualizar(); });
+  document.getElementById("rt-tema").addEventListener("change", (ev) => { F.tema = ev.target.value; atualizar(); });
+  document.getElementById("rt-ordem").addEventListener("change", (ev) => { F.ordem = ev.target.value; atualizar(false); });
+  document.getElementById("rt-gratis").addEventListener("change", (ev) => { F.gratis = ev.target.checked; atualizar(); });
+  document.getElementById("rt-fomos").addEventListener("change", (ev) => {
+    esconderFomos = ev.target.checked; salvarLocal("vida-na-natureza:esconder-fomos", esconderFomos); atualizar();
+  });
+  document.getElementById("rt-quero").addEventListener("click", () => { F.soQueroIr = !F.soQueroIr; atualizar(); });
+  document.getElementById("rt-limpar").addEventListener("click", limparFiltros);
+  document.querySelectorAll(".rt-modos button").forEach((b) => b.addEventListener("click", () => mudarModo(b.dataset.modo)));
+
+  function mudarModo(modo) {
+    F.modo = modo;
+    corpo.className = `rt-corpo modo-${modo}`;
+    document.querySelectorAll(".rt-modos button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.modo === modo));
+    if (modo === "mapa") setTimeout(() => { mapa.invalidateSize(false); enquadrar(); }, 30);
+  }
+
+  // ---- painel de detalhes ----
+  const painel = document.getElementById("rt-painel");
+  const fundo = document.getElementById("rt-fundo");
+
+  function htmlPainel(it) {
+    const perto = it.categoria === "camping" ? [] : itens
+      .filter((c) => c.categoria === "camping" && kmEmLinhaReta(it, c) <= 40)
+      .sort((a, b) => kmEmLinhaReta(it, a) - kmEmLinhaReta(it, b));
+    const P = ROTEIRO.petar;
+    return `
+      <div class="rtp-cab">
+        <span class="rt-ic rtp-ic" aria-hidden="true">${iconeDe(it)}</span>
+        <div class="rtp-titulo">
+          <h2>${esc(it.nome)}</h2>
+          <div class="meta">${esc(it.cidade)} · ~${it.km} km de Bauru · ${tempoDeCarro(it)}</div>
+        </div>
+        <button type="button" class="rtp-fechar" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="rtp-selos">
+        <span class="situacao s-${it.situacao}">${it.gratis ? "Grátis" : SITUACAO[it.situacao]}</span>
+        ${it.categoria === "top" ? `<span class="rtp-tag">TOP ${it.posicao}</span>` : ""}
+        ${it.temas.map((t) => `<span class="rtp-tag">${ICONES_TEMA[t]} ${TEMAS[t]}</span>`).join("")}
+      </div>
+      <div class="rtp-acoes">
+        <button type="button" class="rtp-quero" aria-pressed="${queroIr.has(it.id)}">${queroIr.has(it.id) ? "❤ Na lista Quero ir" : "♡ Quero ir"}</button>
+        <a href="${comoChegar(it)}" target="_blank" rel="noopener">Como chegar${it.aprox ? " (aproximado)" : ""} ↗</a>
+        ${(it.link || (it.categoria === "petar" && P.link)) ? `<a href="${it.link || P.link}" target="_blank" rel="noopener">Mais informações ↗</a>` : ""}
+        <button type="button" class="rtp-ver-mapa">${ICONE_PINO} Ver no mapa</button>
+      </div>
+      ${it.albuns.map((id) => `<a class="rtp-fomos" href="#${id}">✓ Já fomos: ${esc(VIAGENS.find((v) => v.id === id).titulo)} →</a>`).join("")}
+      <p class="rtp-resumo">${esc(it.categoria === "top" ? `Bichos-estrela: ${it.bichos}` : it.resumo)}</p>
+      ${it.dica ? `<p class="lugar-dica">${esc(it.dica)}</p>` : ""}
+      ${it.categoria === "petar" ? `
+        <h3 class="sec-titulo">Núcleos</h3>
+        <dl class="petar-lista">${P.nucleos.map(([n, d]) => `<dt>${esc(n)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
+        <h3 class="sec-titulo">Quanto custa (2026)</h3>
+        <dl class="petar-lista">${P.precos.map(([n, d]) => `<dt>${esc(n)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
+        <h3 class="sec-titulo">Dicas</h3>
+        <ul class="petar-dicas">${P.dicas.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
+      <dl class="lugar-info">
+        ${it.categoria === "top" ? `<dt>Como ir</dt><dd>${esc(it.como)}</dd><dt>Custo</dt><dd>${esc(it.custo)}</dd>` : it.categoria === "petar" ? "" : `<dt>Preço</dt><dd>${esc(it.preco)}</dd>`}
+        ${it.contato ? `<dt>Contato</dt><dd>${esc(it.contato)}</dd>` : ""}
+      </dl>
+      ${it.categoria === "diferente" ? `<p class="aviso-urbex">Muitos lugares assim são particulares ou estão em ruína: vejam de fora, vão de dia e não entrem em construção caindo.</p>` : ""}
+      ${blocoOpiniao(it.avaliacao, true)}
+      ${perto.length ? `
+        <h3 class="sec-titulo">⛺ Onde acampar perto</h3>
+        <ul class="rtp-perto">${perto.map((c) => `<li><button type="button" data-id="${c.id}">${esc(c.nome)} <small>· ${kmEmLinhaReta(it, c) < 1 ? "menos de 1 km" : Math.round(kmEmLinhaReta(it, c)) + " km"} · ${esc(c.preco)}</small></button></li>`).join("")}</ul>` : ""}`;
+  }
+
+  function abrirPainel(id) {
+    const it = itens.find((x) => x.id === id);
+    if (!it) return;
+    painel.innerHTML = htmlPainel(it);
+    painel.scrollTop = 0;
+    if (!painelRoteiro.aberto) {
+      try { history.pushState({ painel: true }, ""); painelRoteiro.noHistorico = true; } catch (_) { /* página publicada pode não permitir */ }
+    }
+    painelRoteiro.aberto = true;
+    painel.hidden = false; fundo.hidden = false;
+    document.body.classList.add("rt-painel-aberto");
+    painel.querySelector(".rtp-fechar").focus({ preventScroll: true });
+    painel.querySelector(".rtp-fechar").addEventListener("click", () => fecharPainel());
+    painel.querySelector(".rtp-quero").addEventListener("click", () => {
+      queroIr.has(it.id) ? queroIr.delete(it.id) : queroIr.add(it.id);
+      salvarLocal("vida-na-natureza:quero-ir", [...queroIr]);
+      abrirPainel(it.id); atualizar(false);
+    });
+    painel.querySelector(".rtp-ver-mapa").addEventListener("click", () => {
+      fecharPainel();
+      if (F.modo !== "mapa" && getComputedStyle(document.querySelector(".rt-modos")).display !== "none") mudarModo("mapa");
+      setTimeout(() => {
+        mapa.setView([it.lat, it.lng], Math.max(mapa.getZoom(), 12));
+        document.getElementById("rt-mapa").scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => pinoDe[it.id]?.getElement()?.querySelector(".rt-pino")?.classList.add("ativo"), 400);
+      }, 60);
+    });
+    painel.querySelectorAll(".rtp-perto button").forEach((b) => b.addEventListener("click", () => abrirPainel(b.dataset.id)));
+  }
+
+  function fecharPainel(veioDoVoltar = false) {
+    if (!painelRoteiro.aberto) return;
+    if (painelRoteiro.noHistorico && !veioDoVoltar) { ignorarVoltar = true; history.back(); }
+    painelRoteiro.aberto = false; painelRoteiro.noHistorico = false;
+    painel.hidden = true; fundo.hidden = true;
+    document.body.classList.remove("rt-painel-aberto");
+  }
+  painelRoteiro.fechar = fecharPainel;
+  fundo.addEventListener("click", () => fecharPainel());
+  painel.addEventListener("keydown", (ev) => { if (ev.key === "Escape") fecharPainel(); });
+
+  atualizar();
+  esperarTamanho();
 }
 
 // ---------- lista de viagens ----------
