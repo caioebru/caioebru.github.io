@@ -53,6 +53,8 @@ git push
 ```
 Em um ou dois minutos o site novo está no ar.
 
+Se mudou `app.js`, `estilo.css`, `dados.js` ou `roteiro.js`, troque antes o número depois de `?v=` no `site/index.html` (e no `publicar.html`), por exemplo de `20261109a` para `20261109b`. Assim os celulares baixam a versão nova em vez de usar a que guardaram.
+
 Como está configurado:
 - `.gitignore` manda só `site/`, `ferramentas/` e este guia. As fotos originais não sobem.
 - `.github/workflows/pages.yml` publica a pasta `site/` sozinho a cada envio para a branch `main`.
