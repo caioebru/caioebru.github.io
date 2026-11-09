@@ -27,6 +27,22 @@ function todasAsFotos() {
   return VIAGENS.flatMap((v) => v.fotos.map((f) => ({ ...f, viagem: v })));
 }
 
+// Caderneta: para cada espécie, a viagem em que apareceu pela primeira vez e
+// todas as viagens em que já apareceu. O número segue a ordem em que foram vistas
+// (viagens da mais antiga para a mais nova, fotos na ordem em que foram tiradas).
+function caderneta() {
+  const c = {};
+  [...viagensOrdenadas()].reverse().forEach((v) => v.fotos.forEach((f) => {
+    if (!ESPECIES[f.especie]) return;
+    const r = (c[f.especie] ||= { primeira: v, viagens: [], fotos: 0 });
+    if (!r.viagens.includes(v)) r.viagens.push(v);
+    r.fotos++;
+  }));
+  Object.values(c).forEach((r, i) => { r.numero = i + 1; });
+  return c;
+}
+const nomeLugar = (v) => v.local || v.titulo;
+
 // ---------- rotas ----------
 const rotas = {
   "": home,
@@ -37,9 +53,12 @@ const rotas = {
 };
 
 let mapaLeaflet = null;
+let albumFiltroInicial = ""; // espécie para o álbum já abrir filtrado (vindo do mapa de uma espécie)
 function mostrarTela(token) {
   let rota = token, param = "";
   if (VIAGENS.some((v) => v.id === token)) { rota = "viagem"; param = token; }
+  // #mapa-sabia-laranjeira: o mapa só com os lugares onde vimos essa espécie
+  if (token.startsWith("mapa-") && ESPECIES[token.slice(5)]) { rota = "mapa"; param = token.slice(5); }
   if (!(rota in rotas)) rota = "";
   if (mapaLeaflet) { mapaLeaflet.remove(); mapaLeaflet = null; }
   fecharLightbox(true);
@@ -93,13 +112,17 @@ function home() {
 }
 
 // ---------- mapa ----------
-function mapa() {
-  document.title = "Mapa · Vida na Natureza";
+function mapa(esp) {
+  const e = ESPECIES[esp];
+  const lugares = viagensOrdenadas().filter((v) => !e || v.fotos.some((f) => f.especie === esp));
+  document.title = e ? `Onde vimos: ${e.nome} · Vida na Natureza` : "Mapa · Vida na Natureza";
   document.documentElement.style.setProperty("--topo-h", topo.offsetHeight + "px");
   app.innerHTML = `
     <section class="mapa-wrap">
       <div id="mapa"></div>
-      <div class="mapa-legenda">${VIAGENS.length} ${VIAGENS.length === 1 ? "álbum" : "álbuns"}. Clique numa foto no mapa para abrir.</div>
+      <div class="mapa-legenda">${e
+        ? `Onde vimos: <b>${esc(e.nome)}</b> · ${lugares.length} ${lugares.length === 1 ? "lugar" : "lugares"} · <a href="#mapa">Mostrar todos os álbuns</a>`
+        : `${VIAGENS.length} ${VIAGENS.length === 1 ? "álbum" : "álbuns"}. Clique numa foto no mapa para abrir.`}</div>
     </section>`;
   mapaLeaflet = L.map("mapa", { zoomControl: true, scrollWheelZoom: true, minZoom: 3, maxZoom: 19 });
   mapaLeaflet.attributionControl.setPrefix(false);
@@ -119,8 +142,11 @@ function mapa() {
   });
 
   mapaLeaflet.on("popupopen", (ev) => {
-    ev.popup.getElement().querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener("click", (e) => {
-      e.preventDefault();
+    ev.popup.getElement().querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener("click", (ev2) => {
+      ev2.preventDefault();
+      ev2.stopPropagation(); // o clique não chega no tratamento geral de links, que abriria a tela de novo
+      // No mapa de uma espécie, o álbum já abre mostrando só as fotos dela.
+      if (e) albumFiltroInicial = esp;
       try { history.pushState(null, "", a.getAttribute("href")); } catch (_) {}
       mostrarTela(a.getAttribute("href").slice(1));
     }));
@@ -129,20 +155,28 @@ function mapa() {
   // Um pino por lugar. Quando o zoom deixa pinos encostados, eles se juntam
   // num pino com contador; clicar nele aproxima o mapa até separá-los.
   const camadaPinos = L.layerGroup().addTo(mapaLeaflet);
-  const lugares = viagensOrdenadas();
+  // No mapa de uma espécie, o pino mostra uma foto dela naquele lugar.
+  const fotoPino = (v) => {
+    if (!e) return v.capa;
+    const fs = v.fotos.filter((f) => f.especie === esp);
+    return (fs.find((f) => f.arquivo === capaDaEspecie(esp, todasAsFotos().filter((x) => x.especie === esp)).arquivo) || fs[0]).arquivo;
+  };
+  const fotosDaEspecie = (v) => v.fotos.filter((f) => f.especie === esp).length;
   const pino = (v, n) => L.divIcon({
     className: "",
-    html: `<div class="pino" style="background-image:url('${thumb(v, v.capa)}')">${n > 1 ? `<span class="pino-n">${n}</span>` : ""}</div>
-      ${n === 1 ? `<span class="pino-rotulo">${esc(v.local || v.titulo)}</span>` : ""}`,
+    html: `<div class="pino" style="background-image:url('${thumb(v, fotoPino(v))}')">${n > 1 ? `<span class="pino-n">${n}</span>` : ""}</div>
+      ${n === 1 ? `<span class="pino-rotulo">${esc(nomeLugar(v))}</span>` : ""}`,
     iconSize: [52, 52], iconAnchor: [26, 26], popupAnchor: [0, -28],
   });
   const popupViagem = (v) => `
     <div class="popup">
-      <img src="${thumb(v, v.capa)}" alt="">
+      <img src="${thumb(v, fotoPino(v))}" alt="">
       <div>
         <h3>${esc(v.titulo)}</h3>
-        <p>${esc(v.local ? v.local + " · " : "")}${esc(v.lugar)}<br>${dataBR(v.data)} · ${v.fotos.length} fotos</p>
-        <a class="botao" href="#${v.id}">Abrir álbum →</a>
+        <p>${esc(v.local ? v.local + " · " : "")}${esc(v.lugar)}<br>${dataBR(v.data)} · ${e
+          ? `${fotosDaEspecie(v)} ${fotosDaEspecie(v) === 1 ? "foto" : "fotos"} de ${esc(e.nome.toLowerCase())}`
+          : `${v.fotos.length} fotos`}</p>
+        <a class="botao" href="#${v.id}">${e ? "Ver as fotos →" : "Abrir álbum →"}</a>
       </div>
     </div>`;
   const popupLista = (vs) => `
@@ -150,7 +184,7 @@ function mapa() {
       <div class="popup-cab"><h3>${esc(vs[0].lugar)}</h3><p>${vs.length} álbuns</p></div>
       ${vs.map((v) => `
         <a class="popup-item" href="#${v.id}">
-          <img src="${thumb(v, v.capa)}" alt="">
+          <img src="${thumb(v, fotoPino(v))}" alt="">
           <span><b>${esc(v.titulo)}</b><small>${esc(v.local || "")} · ${dataBR(v.data)}</small></span>
         </a>`).join("")}
     </div>`;
@@ -237,6 +271,8 @@ function viagem(id) {
 
   const especiesAqui = [...new Set(v.fotos.filter((f) => f.especie).map((f) => f.especie))];
   const tiposAqui = Object.keys(TIPOS).filter((t) => v.fotos.some((f) => f.tipo === t));
+  const cad = caderneta();
+  const novas = especiesAqui.filter((k) => cad[k].primeira === v);
 
   app.innerHTML = `
     <section class="album-capa">
@@ -251,9 +287,9 @@ function viagem(id) {
     <section class="pagina">
       <p class="resumo">${esc(v.resumo)}</p>
       ${especiesAqui.length ? `
-        <h2 class="sec-titulo">Espécies encontradas</h2>
+        <h2 class="sec-titulo">Espécies encontradas${novas.length ? ` · <span class="sec-novas">${novas.length === especiesAqui.length ? (novas.length === 1 ? "nova na caderneta" : "todas novas na caderneta") : `${novas.length} ${novas.length === 1 ? "nova" : "novas"} na caderneta`}</span>` : ""}</h2>
         <div class="chips" id="chips-esp">
-          ${especiesAqui.map((k) => `<button class="chip" data-esp="${k}">${esc(ESPECIES[k].nome)} <i>${esc(ESPECIES[k].cientifico)}</i></button>`).join("")}
+          ${especiesAqui.map((k) => `<button class="chip" data-esp="${k}">${novas.includes(k) ? `<span class="novo">Novo!</span> ` : ""}${esc(ESPECIES[k].nome)} <i>${esc(ESPECIES[k].cientifico)}</i></button>`).join("")}
         </div>` : ""}
       <div class="filtros" id="filtros">
         <button class="chip ativo" data-tipo="">Todas</button>
@@ -262,7 +298,8 @@ function viagem(id) {
       <div class="grade" id="grade"></div>
     </section>`;
 
-  let filtro = { tipo: "", esp: "" };
+  let filtro = { tipo: "", esp: especiesAqui.includes(albumFiltroInicial) ? albumFiltroInicial : "" };
+  albumFiltroInicial = "";
   const grade = document.getElementById("grade");
 
   function desenhar() {
@@ -295,52 +332,92 @@ function viagem(id) {
 }
 
 // ---------- espécies ----------
+let ordemEspecies = (() => { try { return localStorage.getItem("vida-na-natureza:ordem") || "grupo"; } catch (_) { return "grupo"; } })();
+const ICONE_PINO = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>`;
 function especies() {
   document.title = "Espécies · Vida na Natureza";
   const fotos = todasAsFotos().filter((f) => f.especie);
   const porEspecie = {};
   fotos.forEach((f) => (porEspecie[f.especie] ||= []).push(f));
-  const chaves = Object.keys(porEspecie).sort((a, b) =>
-    ESPECIES[a].grupo.localeCompare(ESPECIES[b].grupo) || ESPECIES[a].nome.localeCompare(ESPECIES[b].nome));
+  const cad = caderneta();
+  const chaves = Object.keys(cad); // já na ordem em que foram vistas
 
-  const bloco = (grupo, titulo) => {
-    const ks = chaves.filter((k) => ESPECIES[k].grupo === grupo);
-    if (!ks.length) return "";
+  const card = (k) => {
+    const e = ESPECIES[k], fs = porEspecie[k], capa = capaDaEspecie(k, fs), r = cad[k];
+    const nLugares = r.viagens.length;
     return `
-      <h2 class="sec-titulo" style="margin-top:32px">${titulo} · ${ks.length}</h2>
-      <div class="cards">
-        ${ks.map((k) => {
-          const e = ESPECIES[k], fs = porEspecie[k], capa = capaDaEspecie(k, fs);
-          const lugares = [...new Set(fs.map((f) => f.viagem.titulo))].join(", ");
-          return `
-          <div class="card card-especie" tabindex="0" data-esp="${k}">
-            <div class="card-foto">
-              <img src="${thumb(capa.viagem, capa.arquivo)}" alt="" loading="lazy">
-              ${fs.length > 1 ? `<button class="trocar-capa" data-esp="${k}" aria-label="Escolher a foto de capa de ${esc(e.nome)}">${ICONE_CAPA} Trocar capa</button>` : ""}
-            </div>
-            <div class="card-corpo">
-              <h3>${esc(e.nome)}</h3>
-              <div class="cient">${esc(e.cientifico)}</div>
-              <div class="meta" style="margin-top:8px"><span class="selo ${e.confianca}">${CONFIANCA[e.confianca]}</span> · ${fs.length} ${fs.length === 1 ? "foto" : "fotos"}</div>
-              <div class="meta">${esc(lugares)}</div>
-              ${e.som ? `<button class="ouvir" type="button" data-esp="${k}" aria-label="Ouvir ${esc(e.nome)}">${ICONE_PLAY} <span>Ouvir</span></button>` : ""}
-            </div>
-          </div>`;
-        }).join("")}
+      <div class="card card-especie" tabindex="0" data-esp="${k}">
+        <div class="card-foto">
+          <img src="${thumb(capa.viagem, capa.arquivo)}" alt="" loading="lazy">
+          <span class="numero" title="Número na caderneta">nº ${r.numero}</span>
+          ${fs.length > 1 ? `<button class="trocar-capa" data-esp="${k}" aria-label="Escolher a foto de capa de ${esc(e.nome)}">${ICONE_CAPA} Trocar capa</button>` : ""}
+        </div>
+        <div class="card-corpo">
+          <h3>${esc(e.nome)}</h3>
+          <div class="cient">${esc(e.cientifico)}</div>
+          <div class="meta" style="margin-top:8px"><span class="selo ${e.confianca}">${CONFIANCA[e.confianca]}</span> · ${fs.length} ${fs.length === 1 ? "foto" : "fotos"}</div>
+          <div class="meta primeira-vez">1ª vez em ${dataBR(r.primeira.data)} · ${esc(nomeLugar(r.primeira))}</div>
+          <div class="card-acoes">
+            ${e.som ? `<button class="ouvir" type="button" data-esp="${k}" aria-label="Ouvir ${esc(e.nome)}">${ICONE_PLAY} <span>Ouvir</span></button>` : ""}
+            <a class="ver-mapa" href="#mapa-${k}">${ICONE_PINO} Onde vimos${nLugares > 1 ? ` · ${nLugares} lugares` : ""}</a>
+          </div>
+        </div>
       </div>`;
   };
+
+  // Por grupo: aves, insetos, aranhas, mamíferos.
+  const porGrupo = () => Object.entries(GRUPOS).map(([g, [, plural]]) => {
+    const ks = chaves.filter((k) => ESPECIES[k].grupo === g)
+      .sort((a, b) => ESPECIES[a].nome.localeCompare(ESPECIES[b].nome));
+    return ks.length ? `<h2 class="sec-titulo" style="margin-top:32px">${plural} · ${ks.length}</h2><div class="cards">${ks.map(card).join("")}</div>` : "";
+  }).join("");
+  // Na ordem em que vimos: as novidades de cada viagem, da mais antiga para a mais nova.
+  const porOrdem = () => [...viagensOrdenadas()].reverse().map((v) => {
+    const ks = chaves.filter((k) => cad[k].primeira === v);
+    if (!ks.length) return "";
+    return `
+      <div class="viagem-novas">
+        <h2 class="sec-titulo">${esc(v.titulo)} · ${dataBR(v.data)}</h2>
+        <p>${ks.length} ${ks.length === 1 ? "espécie nova" : "espécies novas"} na caderneta (nº ${cad[ks[0]].numero}${ks.length > 1 ? `${ks.length === 2 ? " e " : " a "}${cad[ks[ks.length - 1]].numero}` : ""})</p>
+      </div>
+      <div class="cards">${ks.map(card).join("")}</div>`;
+  }).join("");
+
+  const contagem = Object.entries(GRUPOS)
+    .map(([g, [sing, plural]]) => [chaves.filter((k) => ESPECIES[k].grupo === g).length, sing, plural])
+    .filter(([n]) => n)
+    .map(([n, sing, plural]) => `${n} ${(n === 1 ? sing : plural).toLowerCase()}`);
+  const ultima = viagensOrdenadas()[0];
+  const novasUltima = chaves.filter((k) => cad[k].primeira === ultima).length;
 
   app.innerHTML = `
     <section class="pagina">
       <h1>Espécies</h1>
-      <p class="intro">Tudo o que já fotografamos. O selo mostra o quanto temos certeza da identificação: algumas só dá para confirmar com uma foto mais de perto ou com a ajuda de especialistas no iNaturalist.</p>
-      ${Object.entries(GRUPOS).map(([g, [, plural]]) => bloco(g, plural)).join("")}
+      <div class="caderneta-resumo">
+        <div class="caderneta-total"><b>${chaves.length}</b><span>espécies na caderneta</span></div>
+        <div class="caderneta-detalhe">
+          <p>${contagem.join(" · ")}</p>
+          ${novasUltima ? `<p>A última viagem, ${esc(nomeLugar(ultima))}, trouxe ${novasUltima} ${novasUltima === 1 ? "espécie nova" : "espécies novas"}.</p>` : ""}
+        </div>
+      </div>
+      <div class="ordem" role="group" aria-label="Como mostrar as espécies">
+        <button type="button" data-ordem="grupo" aria-pressed="${ordemEspecies === "grupo"}">Por grupo</button>
+        <button type="button" data-ordem="vimos" aria-pressed="${ordemEspecies === "vimos"}">Na ordem em que vimos</button>
+      </div>
+      <p class="intro">O número de cada bicho é a ordem em que ele entrou na caderneta. O selo mostra o quanto temos certeza da identificação: algumas só dá para confirmar com uma foto mais de perto ou com a ajuda de especialistas no iNaturalist.</p>
+      ${ordemEspecies === "vimos" ? porOrdem() : porGrupo()}
     </section>`;
+
+  app.querySelectorAll(".ordem button").forEach((b) => b.addEventListener("click", () => {
+    ordemEspecies = b.dataset.ordem;
+    try { localStorage.setItem("vida-na-natureza:ordem", ordemEspecies); } catch (_) {}
+    const y = window.scrollY; especies(); window.scrollTo(0, y);
+  }));
 
   app.querySelectorAll(".card[data-esp]").forEach((c) => {
     const k = c.dataset.esp, fs = porEspecie[k];
     const abrir = () => abrirLightbox(fs, Math.max(0, fs.indexOf(capaDaEspecie(k, fs))));
-    c.addEventListener("click", (ev) => { if (!ev.target.closest(".trocar-capa, .ouvir")) abrir(); });
+    c.addEventListener("click", (ev) => { if (!ev.target.closest(".trocar-capa, .ouvir, .ver-mapa")) abrir(); });
     c.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target === c) abrir(); });
   });
   app.querySelectorAll(".ouvir").forEach((b) => b.addEventListener("click", (ev) => {
@@ -497,6 +574,10 @@ function mostrar() {
       <h2>${esc(e.nome)}</h2>
       <div class="cient">${esc(e.cientifico)}</div>
       <div class="fam">Família ${esc(e.familia)} · <span class="selo ${e.confianca}">${CONFIANCA[e.confianca]}</span></div>
+      ${(() => {
+        const r = caderneta()[f.especie];
+        return r ? `<p class="lb-caderneta">nº ${r.numero} na caderneta · 1ª vez em ${dataBR(r.primeira.data)}, ${esc(nomeLugar(r.primeira))}${r.primeira === v ? ` <span class="novo">Novo!</span>` : ""}<br><a href="#mapa-${f.especie}">${ICONE_PINO} Onde vimos${r.viagens.length > 1 ? ` (${r.viagens.length} lugares)` : ""}</a></p>` : "";
+      })()}
       ${f.legenda ? `<p class="legenda">${esc(f.legenda)}</p>` : ""}
       <p>${esc(e.descricao)}</p>
       ${e.nota ? `<p class="nota">${esc(e.nota)}</p>` : ""}

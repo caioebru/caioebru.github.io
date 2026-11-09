@@ -141,6 +141,36 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.15; mar
 .card .meta { color: var(--tinta-2); font-size: .85rem; margin-top: 2px; }
 .card .cient { font-family: var(--serif); font-style: italic; color: var(--tinta-2); font-size: .95rem; }
 
+/* ---------- caderneta ---------- */
+.caderneta-resumo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; margin: 18px 0 20px; padding: 18px 22px; background: var(--cartao); border: 1px solid var(--linha); border-radius: 16px; }
+.caderneta-total { display: flex; align-items: baseline; gap: 10px; }
+.caderneta-total b { font: 400 3.2rem/1 var(--serif); color: var(--musgo); font-variant-numeric: tabular-nums; }
+.caderneta-total span { font-family: var(--serif); font-size: 1.15rem; }
+.caderneta-detalhe { min-width: 0; flex: 1 1 260px; }
+.caderneta-detalhe p { margin: 0; color: var(--tinta-2); font-size: .92rem; }
+.caderneta-detalhe p + p { margin-top: 2px; }
+.ordem { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--papel-2); border: 1px solid var(--linha); }
+.ordem button { border: 0; background: transparent; color: var(--tinta-2); font: 500 .88rem var(--sans); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+.ordem button[aria-pressed="true"] { background: var(--musgo); color: var(--papel); }
+.ordem button:focus-visible { outline: 2px solid var(--ocre); outline-offset: 1px; }
+.viagem-novas { margin: 32px 0 12px; }
+.viagem-novas .sec-titulo { margin-bottom: 2px; }
+.viagem-novas p { margin: 0; color: var(--tinta-2); font-size: .9rem; }
+.numero { position: absolute; left: 10px; top: 10px; padding: 2px 9px; border-radius: 999px; background: rgba(16, 20, 14, .72); color: #f6f1e6; font: 600 .75rem var(--sans); font-variant-numeric: tabular-nums; backdrop-filter: blur(6px); }
+.primeira-vez { color: var(--tinta); }
+.card-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 10px; }
+.card-acoes .ouvir { margin-top: 0; }
+.ver-mapa { display: inline-flex; align-items: center; gap: 5px; font-size: .84rem; font-weight: 500; color: var(--musgo); text-decoration: none; }
+.ver-mapa:hover { text-decoration: underline; }
+.novo { display: inline-block; padding: 0 7px; border-radius: 999px; background: var(--ocre); color: #fff; font: 700 .68rem/1.6 var(--sans); letter-spacing: .03em; vertical-align: 1px; }
+.chip.ativo .novo { background: var(--papel); color: var(--musgo); }
+.chip.ativo i { color: inherit; opacity: .8; }
+.sec-novas { color: var(--ocre); }
+.mapa-legenda a { color: var(--musgo); font-weight: 600; }
+.lb-caderneta { font-size: .85rem !important; color: #b8bfa9 !important; line-height: 1.7; }
+.lb-caderneta a { display: inline-flex; align-items: center; gap: 5px; color: #8db586; font-weight: 600; text-decoration: none; }
+.lb-caderneta a:hover { text-decoration: underline; }
+
 /* ---------- sons ---------- */
 .ouvir {
   display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
