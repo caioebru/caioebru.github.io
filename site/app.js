@@ -110,7 +110,7 @@ function home() {
           <a href="#mapa"><div class="ico">🗺️</div><h2>Mapa</h2><p>Onde a gente já foi. Clique num ponto para abrir o álbum.</p></a>
           <a href="#viagens"><div class="ico">📷</div><h2>Viagens</h2><p>Todos os álbuns, do mais novo ao mais antigo.</p></a>
           <a href="#especies"><div class="ico">🪲</div><h2>Espécies</h2><p>As aves, os insetos e os outros bichos que fotografamos, com o que descobrimos sobre cada um.</p></a>
-          <a href="#roteiro"><div class="ico">🧭</div><h2>Roteiro</h2><p>Ideias para as próximas saídas: perto de Bauru, o PETAR e o TOP 10 do Brasil.</p></a>
+          <a href="#roteiro" hidden><div class="ico">🧭</div><h2>Roteiro</h2><p>Ideias para as próximas saídas: perto de Bauru, o PETAR e o TOP 10 do Brasil.</p></a>
         </nav>
         <div class="numeros">
           <div><b>${VIAGENS.length}</b>${VIAGENS.length === 1 ? "viagem" : "viagens"}</div>
