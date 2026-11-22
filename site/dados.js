@@ -205,6 +205,123 @@ const ESPECIES = {
       "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Aglaoctenus%20lagotis",
     },
   },
+  "sanhaco-do-coqueiro": {
+    "nome": "Sanhaço-do-coqueiro",
+    "cientifico": "Thraupis palmarum",
+    "familia": "Thraupidae",
+    "grupo": "ave",
+    "confianca": "provavel",
+    "descricao": "Sanhaço verde-oliva acinzentado, com as asas mais escuras e um tom amarelado. Como o nome diz, adora coqueiros e palmeiras, onde procura insetos e frutinhas e às vezes faz o ninho entre as folhas. Muito comum no litoral e nas cidades.",
+    "nota": "Visto só de longe, em cima de um muro. A cor uniforme e o lugar, cheio de coqueiros, apontam para o sanhaço-do-coqueiro.",
+    "links": {
+      "WikiAves": "https://www.wikiaves.com.br/wiki/sanhaco-do-coqueiro",
+      "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Thraupis%20palmarum"
+    },
+    "som": {
+      "arquivo": "sanhaco-do-coqueiro.mp3",
+      "tipo": "Canto",
+      "autor": "Lucas Petersen",
+      "licenca": "CC BY-NC 4.0",
+      "local": "Praia Grande, SP",
+      "link": "https://www.inaturalist.org/observations/395792653"
+    }
+  },
+  "teiu": {
+    "nome": "Teiú",
+    "cientifico": "Salvator merianae",
+    "familia": "Teiidae",
+    "grupo": "reptil",
+    "confianca": "alta",
+    "capa": "DSC07821-wonder-4.jpg",
+    "descricao": "O maior lagarto da Mata Atlântica e do Cerrado: passa de 1 m com a cauda. Preto com faixas e pintas amarelo-claras, anda pelo chão da mata farejando com a língua bifurcada. Come de tudo: frutas, ovos, insetos e pequenos animais. No inverno fica entocado e quase some.",
+    "links": {
+      "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Salvator%20merianae"
+    }
+  },
+  "opiliao-gonileptideo": {
+    "nome": "Opilião",
+    "cientifico": "Gonyleptidae (gênero a confirmar)",
+    "familia": "Gonyleptidae",
+    "grupo": "aracnideo",
+    "confianca": "a-confirmar",
+    "capa": "DSC07727-wonder-4.jpg",
+    "descricao": "Parece aranha, mas não é: opilião tem o corpo numa peça só, não faz teia e não tem veneno. Os gonileptídeos, como este, laranja com pintinhas pretas e espinhos nas pernas de trás, são uma marca da Mata Atlântica: o Brasil tem centenas de espécies, muitas só daqui. Quando incomodados, soltam um cheiro forte para se defender.",
+    "nota": "A família é certa pelo formato; a espécie só um especialista confirma. Ótimo candidato para postar no iNaturalist.",
+    "links": {
+      "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Gonyleptidae"
+    }
+  },
+  "esperanca": {
+    "nome": "Esperança",
+    "cientifico": "Tettigoniidae (ninfa)",
+    "familia": "Tettigoniidae",
+    "grupo": "inseto",
+    "confianca": "a-confirmar",
+    "descricao": "Parente do grilo, verde e de antenas mais compridas que o corpo. Esta ainda é ninfa: as asas são só uns cotos e vão crescer nas próximas trocas de pele. Muitas esperanças imitam folhas para se esconder dos predadores.",
+    "links": {
+      "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Tettigoniidae"
+    }
+  },
+  "vespa-cacadora-de-aranha": {
+    "nome": "Vespa-caçadora-de-aranha",
+    "cientifico": "Pompilidae (gênero a confirmar)",
+    "familia": "Pompilidae",
+    "grupo": "inseto",
+    "confianca": "provavel",
+    "capa": "DSC07811-wonder-4.jpg",
+    "descricao": "Estas fotos pegaram uma cena rara: a vespa arrastando uma aranha. As vespas pompilídeas caçam aranhas, paralisam com uma ferroada e levam para um buraco, onde põem um ovo nela. Quando a larva nasce, a aranha (ainda viva) vira comida. A vespa adulta só toma néctar.",
+    "nota": "A cena de caça e o corpo laranja e preto indicam Pompilidae. O gênero a gente não consegue ver pela foto.",
+    "links": {
+      "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Pompilidae"
+    }
+  },
+  "borboleta-tigre": {
+    "nome": "Borboleta-tigre",
+    "cientifico": "Ithomiini (provavelmente Mechanitis)",
+    "familia": "Nymphalidae — Danainae",
+    "grupo": "inseto",
+    "confianca": "a-confirmar",
+    "descricao": "Laranja com faixas pretas, uma mancha amarela e pintas brancas na borda: o padrão de \"tigre\" que várias borboletas da mata copiam umas das outras. É um aviso aos pássaros de que elas têm gosto ruim, porque as lagartas comem plantas tóxicas.",
+    "nota": "Muitas espécies diferentes usam esse mesmo desenho, então só uma foto das asas abertas confirma.",
+    "links": {
+      "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Mechanitis"
+    }
+  },
+  "borboleta-do-folhico": {
+    "nome": "Borboleta do folhiço",
+    "cientifico": "Lepidoptera (a confirmar)",
+    "familia": "a confirmar",
+    "grupo": "inseto",
+    "confianca": "a-confirmar",
+    "descricao": "Marrom e cor de folha seca, quase invisível no chão da mata. Muitas borboletas do sub-bosque vivem assim, pousadas no folhiço, onde a camuflagem é a melhor defesa.",
+    "nota": "Identificação incerta; pode até ser uma mariposa. Vale postar no iNaturalist.",
+    "links": {
+      "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Lepidoptera"
+    }
+  },
+  "besouro-rola-bosta": {
+    "nome": "Besouro azul-metálico",
+    "cientifico": "provavelmente Scarabaeinae (rola-bosta)",
+    "familia": "Scarabaeidae",
+    "grupo": "inseto",
+    "confianca": "a-confirmar",
+    "descricao": "Besouro redondo e lustroso, azul quase preto com reflexo verde. O formato lembra os rola-bostas da mata, que enterram fezes e frutos podres e assim espalham sementes e adubam o solo.",
+    "nota": "Pode ser outro grupo de besouro; a confirmar.",
+    "links": {
+      "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Scarabaeinae"
+    }
+  },
+  "besouro-folha-verde": {
+    "nome": "Besouro-folha verde",
+    "cientifico": "Chrysomelidae (gênero a confirmar)",
+    "familia": "Chrysomelidae",
+    "grupo": "inseto",
+    "confianca": "a-confirmar",
+    "descricao": "Verde metálico brilhante com pernas e antenas cor de laranja. Parece com o besouro-folha do Horto, mas as pernas claras indicam outra espécie. Os besouros-folha comem folhas, e o brilho vem da estrutura da carapaça, não de pigmento.",
+    "links": {
+      "iNaturalist": "https://www.inaturalist.org/taxa/search?q=Chrysomelidae"
+    }
+  },
 };
 
 // Pasta do Google Drive com todas as fotos em alta resolução.
@@ -217,7 +334,7 @@ const DRIVE_GERAL = "https://drive.google.com/drive/folders/1hn15ONYq7BDZr08ek77
 //   Foto de bicho em cativeiro aparece marcada como "Zoológico" e não entra na caderneta.
 //   Numa foto, "cativeiro: true" (ou false) vale mais que o zoologico da viagem: serve para
 //   o urubu solto que apareceu dentro do zoológico, por exemplo.
-// drive: pasta da viagem no Drive.
+// drive: pasta da viagem no Drive ("" enquanto a pasta não estiver compartilhada: o site esconde o botão).
 // driveArquivos: { "DSC0001.jpg": "id do arquivo no Drive" }. Gere com ferramentas\links-drive.ps1.
 //   A foto que não estiver na lista abre a pasta da viagem.
 const VIAGENS = [
@@ -517,6 +634,66 @@ const VIAGENS = [
       { arquivo: "DSC08880.jpg", tipo: "bicho", especie: "aranha-de-funil" },
       { arquivo: "DSC08887.jpg", tipo: "bicho", especie: "sagui-de-tufo-branco", legenda: "Sagui espiando entre os galhos" },
       { arquivo: "DSC08889.jpg", tipo: "bicho", especie: "sagui-de-tufo-branco" },
+    ],
+  },
+  {
+    id: "maresias-2026-11-21",
+    titulo: "Trilha das Sete Quedas, Maresias",
+    local: "Trilha das Sete Quedas",
+    lugar: "São Sebastião, SP",
+    data: "2026-11-21",
+    lat: -23.775,
+    lng: -45.562,
+    capa: "DSC07727-wonder-4.jpg",
+    drive: "",
+    driveArquivos: {},
+    resumo:
+      "Uma manhã na Trilha das Sete Quedas, no Núcleo São Sebastião do Parque Estadual da Serra do Mar, atrás de Maresias: 3 km de Mata Atlântica com riachos e cachoeira. A mata estava cheia de bichos pequenos: opiliões de espinhos laranja, uma esperança, besouros metálicos, uma vespa arrastando a aranha que tinha caçado e, no fim, um teiú atravessando o folhiço.",
+    fotos: [
+      { arquivo: "DSC07647-wonder-4.jpg", tipo: "paisagem", legenda: "A placa da Trilha das Sete Quedas" },
+      { arquivo: "DSC07657-wonder-4.jpg", tipo: "ave", especie: "sanhaco-do-coqueiro" },
+      { arquivo: "DSC07659-wonder-4.jpg", tipo: "paisagem", legenda: "Cipós e epífitas" },
+      { arquivo: "DSC07664-wonder-4.jpg", tipo: "inseto", especie: "borboleta-do-folhico", legenda: "Camuflada no folhiço" },
+      { arquivo: "DSC07665-wonder-4.jpg", tipo: "paisagem", legenda: "O começo da trilha" },
+      { arquivo: "DSC07673-wonder-4.jpg", tipo: "pessoas", legenda: "Bru" },
+      { arquivo: "DSC07676-wonder-4.jpg", tipo: "paisagem", legenda: "Emaranhado de cipós" },
+      { arquivo: "DSC07677-wonder-4.jpg", tipo: "paisagem" },
+      { arquivo: "DSC07678-wonder-4.jpg", tipo: "paisagem", legenda: "Contra a luz da copa" },
+      { arquivo: "DSC07682-wonder-4.jpg", tipo: "pessoas", legenda: "Bre fotografando" },
+      { arquivo: "DSC07683-wonder-4.jpg", tipo: "bicho", especie: "opiliao-gonileptideo" },
+      { arquivo: "DSC07686-wonder-4.jpg", tipo: "bicho", especie: "opiliao-gonileptideo" },
+      { arquivo: "DSC07687-wonder-4.jpg", tipo: "bicho", especie: "opiliao-gonileptideo" },
+      { arquivo: "DSC07688-wonder-4.jpg", tipo: "bicho", especie: "opiliao-gonileptideo" },
+      { arquivo: "DSC07693-wonder-4.jpg", tipo: "bicho", especie: "opiliao-gonileptideo", legenda: "Os espinhos das pernas de trás" },
+      { arquivo: "DSC07700-wonder-4.jpg", tipo: "pessoas" },
+      { arquivo: "DSC07707-wonder-4.jpg", tipo: "pessoas", legenda: "Bre" },
+      { arquivo: "DSC07710-wonder-4.jpg", tipo: "paisagem", legenda: "Tronco coberto de musgo" },
+      { arquivo: "DSC07712-wonder-4.jpg", tipo: "paisagem" },
+      { arquivo: "DSC07713-wonder-4.jpg", tipo: "paisagem", legenda: "Tronco com trepadeira" },
+      { arquivo: "DSC07714-wonder-4.jpg", tipo: "paisagem", legenda: "Musgo e uma plantinha nascendo" },
+      { arquivo: "DSC07715-wonder-4.jpg", tipo: "pessoas", legenda: "Bre fotografando" },
+      { arquivo: "DSC07716-wonder-4.jpg", tipo: "pessoas", legenda: "Bre fotografando" },
+      { arquivo: "DSC07717-wonder-4.jpg", tipo: "pessoas", legenda: "Bre na mata" },
+      { arquivo: "DSC07725-wonder-4.jpg", tipo: "bicho", especie: "opiliao-gonileptideo" },
+      { arquivo: "DSC07727-wonder-4.jpg", tipo: "bicho", especie: "opiliao-gonileptideo", legenda: "De frente, numa folha de palmeira" },
+      { arquivo: "DSC07729-wonder-4.jpg", tipo: "paisagem" },
+      { arquivo: "DSC07730-wonder-4.jpg", tipo: "inseto", especie: "esperanca" },
+      { arquivo: "DSC07733-wonder-4.jpg", tipo: "inseto", especie: "esperanca" },
+      { arquivo: "DSC07735-wonder-4.jpg", tipo: "bicho", legenda: "Aranha na teia" },
+      { arquivo: "DSC07738-wonder-4.jpg", tipo: "pessoas", legenda: "Bre e Bru na trilha" },
+      { arquivo: "DSC07739-wonder-4.jpg", tipo: "cogumelo", legenda: "Cogumelos num tronco caído" },
+      { arquivo: "DSC07741-wonder-4.jpg", tipo: "cogumelo", legenda: "Cogumelos num tronco caído" },
+      { arquivo: "DSC07748-wonder-4.jpg", tipo: "inseto", especie: "borboleta-tigre" },
+      { arquivo: "DSC07752-wonder-4.jpg", tipo: "inseto", especie: "besouro-rola-bosta" },
+      { arquivo: "DSC07754-wonder-4.jpg", tipo: "inseto", especie: "besouro-folha-verde" },
+      { arquivo: "DSC07766-wonder-4.jpg", tipo: "cogumelo", legenda: "Cogumelinhos laranja no folhiço" },
+      { arquivo: "DSC07771-wonder-4.jpg", tipo: "pessoas", legenda: "Bru" },
+      { arquivo: "DSC07782-wonder-4.jpg", tipo: "cogumelo", legenda: "Orelhas-de-pau no tronco" },
+      { arquivo: "DSC07785-wonder-4.jpg", tipo: "paisagem", legenda: "A trilha na mata fechada" },
+      { arquivo: "DSC07792-wonder-4.jpg", tipo: "paisagem", legenda: "Degraus da trilha" },
+      { arquivo: "DSC07808-wonder-4.jpg", tipo: "inseto", especie: "vespa-cacadora-de-aranha", legenda: "A vespa com a aranha que caçou" },
+      { arquivo: "DSC07811-wonder-4.jpg", tipo: "inseto", especie: "vespa-cacadora-de-aranha" },
+      { arquivo: "DSC07821-wonder-4.jpg", tipo: "bicho", especie: "teiu", legenda: "Teiú atravessando o folhiço" },
     ],
   },
 ];

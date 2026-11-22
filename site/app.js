@@ -5,8 +5,8 @@
 const app = document.getElementById("app");
 const topo = document.getElementById("topo");
 
-const TIPOS = { ave: "Aves", inseto: "Insetos", bicho: "Outros bichos", paisagem: "Paisagens", nos: "Nós", pessoas: "Pessoas", festa: "Festa" };
-const GRUPOS = { ave: ["Ave", "Aves"], inseto: ["Inseto", "Insetos"], aracnideo: ["Aracnídeo", "Aranhas"], mamifero: ["Mamífero", "Mamíferos"] };
+const TIPOS = { ave: "Aves", inseto: "Insetos", bicho: "Outros bichos", paisagem: "Paisagens", nos: "Nós", pessoas: "Pessoas", festa: "Festa", cogumelo: "Cogumelos" };
+const GRUPOS = { ave: ["Ave", "Aves"], inseto: ["Inseto", "Insetos"], aracnideo: ["Aracnídeo", "Aracnídeos"], mamifero: ["Mamífero", "Mamíferos"], reptil: ["Réptil", "Répteis"] };
 const CONFIANCA = { alta: "Identificação segura", provavel: "Provável", "a-confirmar": "A confirmar" };
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
@@ -720,7 +720,7 @@ function viagem(id) {
         <a class="voltar" href="#mapa">← Voltar ao mapa</a>
         <h1>${esc(v.titulo)}</h1>
         <div class="meta">${esc(v.lugar)} · ${dataBR(v.data)} · ${v.fotos.length} fotos</div>
-        <a class="botao botao-drive" href="${v.drive || DRIVE_GERAL}" target="_blank" rel="noopener">${ICONE_DRIVE} Fotos em alta no Drive</a>
+        ${v.drive === "" ? "" : `<a class="botao botao-drive" href="${v.drive || DRIVE_GERAL}" target="_blank" rel="noopener">${ICONE_DRIVE} Fotos em alta no Drive</a>`}
       </div>
     </section>
     <section class="pagina">
@@ -1019,9 +1019,11 @@ function mostrar() {
   lb.querySelectorAll(".lb-seta").forEach((b) => (b.style.display = lbLista.length > 1 ? "" : "none"));
 
   const temArquivo = !!v.driveArquivos?.[f.arquivo];
+  // drive: "" quando a pasta da viagem ainda não foi compartilhada: sem botão.
+  const semDrive = v.drive === "" && !temArquivo;
   lbInfo.innerHTML = `
-    <a class="lb-drive" href="${linkDrive(v, f)}" target="_blank" rel="noopener">${ICONE_DRIVE} Abrir em alta no Drive</a>
-    ${temArquivo ? "" : `<div class="lb-drive-dica">Abre a pasta da viagem. Procure por ${esc(f.arquivo)}.</div>`}
+    ${semDrive ? "" : `<a class="lb-drive" href="${linkDrive(v, f)}" target="_blank" rel="noopener">${ICONE_DRIVE} Abrir em alta no Drive</a>
+    ${temArquivo ? "" : `<div class="lb-drive-dica">Abre a pasta da viagem. Procure por ${esc(f.arquivo)}.</div>`}`}
     ${e ? `
       <div class="sec-titulo" style="color:#8f977f">${(GRUPOS[e.grupo] || [""])[0]}</div>
       <h2>${esc(e.nome)}</h2>
