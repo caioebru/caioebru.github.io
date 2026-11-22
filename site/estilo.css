@@ -488,11 +488,35 @@ body.rt-painel-aberto { overflow: hidden; }
 .lb-seta { top: 50%; transform: translateY(-50%); width: 46px; height: 46px; font-size: 2rem; line-height: 1; }
 .lb-ant { left: 12px; }
 .lb-prox { right: 372px; }
+/* zoom da foto */
+.lb-foto { overflow: hidden; touch-action: none; }
+.lb-foto img { cursor: zoom-in; transform-origin: center; will-change: transform; user-select: none; -webkit-user-drag: none; }
+.lightbox.com-zoom .lb-foto img { cursor: grab; }
+.lightbox.com-zoom .lb-seta { opacity: .35; }
+.lb-detalhes { display: none; }
+
+/* celular: a foto ocupa a tela; os detalhes ficam num painel que abre de baixo */
 @media (max-width: 860px) {
-  .lightbox { grid-template-columns: 1fr; grid-template-rows: minmax(0, 62vh) 1fr; }
-  .lb-foto { padding: 56px 8px 8px; }
-  .lb-foto img { max-height: calc(62vh - 64px); }
-  .lb-info { border-left: 0; border-top: 1px solid #2a3027; padding: 18px 16px 32px; }
-  .lb-seta { top: 31vh; width: 40px; height: 40px; }
+  .lightbox { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  .lb-foto { padding: calc(56px + env(safe-area-inset-top, 0px)) 0 calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .lb-foto img { max-height: calc(100vh - 120px); max-height: calc(100svh - 120px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); border-radius: 0; }
+  .lb-info {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+    max-height: calc(64px + env(safe-area-inset-bottom, 0px)); overflow: hidden;
+    border-left: 0; border-top: 1px solid #2a3027; border-radius: 16px 16px 0 0;
+    padding: 0 16px calc(28px + env(safe-area-inset-bottom, 0px));
+    transition: max-height .25s ease-out;
+  }
+  .lightbox.lb-info-aberta .lb-info { max-height: 75vh; max-height: 75svh; overflow-y: auto; }
+  .lb-detalhes {
+    display: flex; align-items: center; gap: 10px; width: 100%; height: 64px; margin: 0 0 8px; padding: 0;
+    border: 0; background: none; color: #f6f1e6; font: 500 1rem var(--sans); text-align: left; cursor: pointer;
+    position: sticky; top: 0; background: #151913; z-index: 1;
+  }
+  .lb-detalhes span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-detalhes small { flex: none; color: #8db586; font-weight: 600; font-size: .85rem; }
+  .lb-detalhes small::after { content: " ▲"; }
+  .lightbox.lb-info-aberta .lb-detalhes small::after { content: " ▼"; }
+  .lb-seta { top: 50%; width: 40px; height: 40px; }
   .lb-prox { right: 12px; }
 }

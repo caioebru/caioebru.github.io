@@ -998,6 +998,7 @@ function fecharLightbox(veioDoVoltar = false) {
   if (lbNoHistorico && !veioDoVoltar) { ignorarVoltar = true; history.back(); }
   lbNoHistorico = false;
   lb.hidden = true; document.body.style.overflow = "";
+  lb.classList.remove("lb-info-aberta");
   pararSom();
   // Se trocou a capa vendo a foto na página Espécies, atualiza os cards.
   if (capaMudou && app.querySelector(".card-especie")) {
@@ -1011,6 +1012,7 @@ function passo(d) {
 }
 function mostrar() {
   const f = lbLista[lbIdx], v = f.viagem, e = ESPECIES[f.especie];
+  zerarZoom();
   lbImg.src = thumb(v, f.arquivo); // aparece na hora, depois troca pela grande
   const grande = new Image();
   grande.onload = () => { if (lbLista[lbIdx] === f) lbImg.src = grande.src; };
@@ -1021,7 +1023,9 @@ function mostrar() {
   const temArquivo = !!v.driveArquivos?.[f.arquivo];
   // drive: "" quando a pasta da viagem ainda não foi compartilhada: sem botão.
   const semDrive = v.drive === "" && !temArquivo;
+  const tituloFoto = e ? e.nome : f.legenda || TIPOS[f.tipo] || "Detalhes";
   lbInfo.innerHTML = `
+    <button type="button" class="lb-detalhes"><span>${esc(tituloFoto)}</span><small>Detalhes</small></button>
     ${semDrive ? "" : `<a class="lb-drive" href="${linkDrive(v, f)}" target="_blank" rel="noopener">${ICONE_DRIVE} Abrir em alta no Drive</a>
     ${temArquivo ? "" : `<div class="lb-drive-dica">Abre a pasta da viagem. Procure por ${esc(f.arquivo)}.</div>`}`}
     ${e ? `
@@ -1084,14 +1088,109 @@ document.addEventListener("keydown", (ev) => {
   if (ev.key === "ArrowLeft") passo(-1);
   if (ev.key === "ArrowRight") passo(1);
 });
-// Deslizar para os lados no celular.
-let toqueX = null;
-lb.addEventListener("touchstart", (ev) => { toqueX = ev.touches[0].clientX; }, { passive: true });
-lb.addEventListener("touchend", (ev) => {
-  if (toqueX === null) return;
-  const dx = ev.changedTouches[0].clientX - toqueX;
-  if (Math.abs(dx) > 50) passo(dx < 0 ? 1 : -1);
-  toqueX = null;
+// ---------- zoom da foto ----------
+// Pinça (ou rodinha do mouse) aproxima, um dedo (ou o mouse) arrasta, toque duplo
+// (ou clique duplo) alterna o zoom. Deslizar para os lados troca de foto só sem zoom.
+const lbFoto = lb.querySelector(".lb-foto");
+const zoom = { s: 1, x: 0, y: 0 };
+function aplicarZoom(animar = false) {
+  lbImg.style.transition = animar ? "transform .2s ease-out" : "none";
+  lbImg.style.transform = zoom.s === 1 ? "" : `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})`;
+  lb.classList.toggle("com-zoom", zoom.s > 1);
+}
+function zerarZoom(animar = false) { zoom.s = 1; zoom.x = 0; zoom.y = 0; aplicarZoom(animar); }
+function limitarZoom() {
+  // a foto não sai da área visível: o deslocamento máximo é o quanto ela cresceu
+  const mx = (lbImg.offsetWidth * (zoom.s - 1)) / 2, my = (lbImg.offsetHeight * (zoom.s - 1)) / 2;
+  zoom.x = Math.max(-mx, Math.min(mx, zoom.x));
+  zoom.y = Math.max(-my, Math.min(my, zoom.y));
+}
+// Aproxima mantendo parado o ponto (px, py) da tela que está sob os dedos.
+function zoomEm(s, px, py, animar = false) {
+  s = Math.max(1, Math.min(5, s));
+  const r = lbImg.getBoundingClientRect();
+  const cx = r.left + r.width / 2 - zoom.x, cy = r.top + r.height / 2 - zoom.y; // centro sem deslocamento
+  zoom.x = px - cx - (s * (px - cx - zoom.x)) / zoom.s;
+  zoom.y = py - cy - (s * (py - cy - zoom.y)) / zoom.s;
+  zoom.s = s;
+  if (s === 1) { zoom.x = 0; zoom.y = 0; }
+  limitarZoom(); aplicarZoom(animar);
+}
+const alternarZoom = (px, py) => (zoom.s > 1 ? zerarZoom(true) : zoomEm(2.5, px, py, true));
+
+const toque = { modo: null, x0: 0, y0: 0, zx: 0, zy: 0, d0: 0, s0: 1, ultimoTap: 0, tapX: 0, tapY: 0, moveu: false };
+const distancia = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+function comecarUmDedo(t) {
+  Object.assign(toque, { modo: zoom.s > 1 ? "arrastar" : "deslizar", x0: t.clientX, y0: t.clientY, zx: zoom.x, zy: zoom.y, moveu: false });
+}
+lbFoto.addEventListener("touchstart", (ev) => {
+  if (ev.touches.length === 2) {
+    const [a, b] = ev.touches;
+    Object.assign(toque, { modo: "pinca", d0: distancia(a, b), s0: zoom.s, moveu: true });
+  } else if (ev.touches.length === 1) {
+    comecarUmDedo(ev.touches[0]);
+  }
+}, { passive: true });
+lbFoto.addEventListener("touchmove", (ev) => {
+  if (toque.modo === "pinca" && ev.touches.length === 2) {
+    ev.preventDefault();
+    const [a, b] = ev.touches;
+    zoomEm((toque.s0 * distancia(a, b)) / toque.d0, (a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+  } else if (toque.modo === "arrastar" && ev.touches.length === 1) {
+    ev.preventDefault();
+    const t = ev.touches[0];
+    zoom.x = toque.zx + t.clientX - toque.x0; zoom.y = toque.zy + t.clientY - toque.y0;
+    toque.moveu = true; limitarZoom(); aplicarZoom();
+  } else if (ev.touches.length === 1 && Math.hypot(ev.touches[0].clientX - toque.x0, ev.touches[0].clientY - toque.y0) > 10) {
+    toque.moveu = true;
+  }
+}, { passive: false });
+lbFoto.addEventListener("touchend", (ev) => {
+  const t = ev.changedTouches[0];
+  if (toque.modo === "pinca") {
+    if (zoom.s < 1.05) zerarZoom(true);
+    // sobrou um dedo na tela: continua arrastando a partir dele
+    if (ev.touches.length === 1) comecarUmDedo(ev.touches[0]); else toque.modo = null;
+    return;
+  }
+  if (toque.modo === "deslizar") {
+    const dx = t.clientX - toque.x0, dy = t.clientY - toque.y0;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { toque.modo = null; return passo(dx < 0 ? 1 : -1); }
+  }
+  // toque duplo alterna o zoom
+  if (!toque.moveu && ev.target === lbImg) {
+    const agora = Date.now();
+    if (agora - toque.ultimoTap < 300 && Math.hypot(t.clientX - toque.tapX, t.clientY - toque.tapY) < 30) {
+      ev.preventDefault(); alternarZoom(t.clientX, t.clientY); toque.ultimoTap = 0;
+    } else {
+      Object.assign(toque, { ultimoTap: agora, tapX: t.clientX, tapY: t.clientY });
+    }
+  }
+  toque.modo = null;
+});
+// Computador: clique duplo, rodinha do mouse e arrastar com o mouse.
+lbImg.addEventListener("dblclick", (ev) => alternarZoom(ev.clientX, ev.clientY));
+lbFoto.addEventListener("wheel", (ev) => {
+  if (lb.hidden) return;
+  ev.preventDefault();
+  zoomEm(zoom.s * (ev.deltaY < 0 ? 1.2 : 1 / 1.2), ev.clientX, ev.clientY);
+}, { passive: false });
+let arrastoMouse = null;
+lbImg.addEventListener("mousedown", (ev) => {
+  if (zoom.s === 1) return;
+  ev.preventDefault();
+  arrastoMouse = { x0: ev.clientX, y0: ev.clientY, zx: zoom.x, zy: zoom.y };
+});
+window.addEventListener("mousemove", (ev) => {
+  if (!arrastoMouse) return;
+  zoom.x = arrastoMouse.zx + ev.clientX - arrastoMouse.x0; zoom.y = arrastoMouse.zy + ev.clientY - arrastoMouse.y0;
+  limitarZoom(); aplicarZoom();
+});
+window.addEventListener("mouseup", () => { arrastoMouse = null; });
+
+// Celular: os detalhes ficam num painel embaixo, que abre e fecha.
+lbInfo.addEventListener("click", (ev) => {
+  if (ev.target.closest(".lb-detalhes")) lb.classList.toggle("lb-info-aberta");
 });
 
 mostrarTela(location.hash.slice(1));
