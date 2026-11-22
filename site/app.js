@@ -1,4 +1,4 @@
-// Vida na Natureza — Caio & Bru
+// Vida na Natureza — Lyra Click
 // Site de página única. Cada tela tem um nome simples depois do #:
 // #mapa, #viagens, #especies ou o id de uma viagem (ex.: #horto-bauru-2026-11-07).
 
@@ -103,7 +103,7 @@ function home() {
     <section class="home">
       <div class="home-fundo" style="background-image:url('${web(recente, recente.capa)}')"></div>
       <div class="home-conteudo">
-        <div class="home-sobre">Caderno de campo de Caio &amp; Bru</div>
+        <div class="home-sobre">Caderno de campo do Caio e da Bru</div>
         <h1>Vida na <em>Natureza</em></h1>
         <p class="home-sub">Os lugares por onde andamos e os bichinhos que encontramos no caminho.</p>
         <nav class="menu">

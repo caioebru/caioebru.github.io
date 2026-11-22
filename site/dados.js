@@ -666,7 +666,7 @@ const VIAGENS = [
       { arquivo: "DSC07688-wonder-4.jpg", tipo: "bicho", especie: "opiliao-gonileptideo" },
       { arquivo: "DSC07693-wonder-4.jpg", tipo: "bicho", especie: "opiliao-gonileptideo", legenda: "Os espinhos das pernas de trás" },
       { arquivo: "DSC07700-wonder-4.jpg", tipo: "pessoas" },
-      { arquivo: "DSC07707-wonder-4.jpg", tipo: "pessoas", legenda: "Caio e Bru" },
+      { arquivo: "DSC07707-wonder-4.jpg", tipo: "pessoas", legenda: "Lyra Click" },
       { arquivo: "DSC07710-wonder-4.jpg", tipo: "paisagem", legenda: "Tronco coberto de musgo" },
       { arquivo: "DSC07712-wonder-4.jpg", tipo: "paisagem" },
       { arquivo: "DSC07713-wonder-4.jpg", tipo: "paisagem", legenda: "Tronco com trepadeira" },

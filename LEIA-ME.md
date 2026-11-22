@@ -42,8 +42,8 @@ Ou mandem as fotos para o Claude: ele roda o script, identifica os bichos e pree
 
 ## GitHub Pages
 
-O site está em **https://caioebru.github.io**
-(repositório: https://github.com/caioebru/caioebru.github.io, na organização "caioebru").
+O site está em **https://lyraclick.github.io**
+(repositório: https://github.com/Lyraclick/lyraclick.github.io, na organização "Lyraclick").
 
 Para atualizar depois de mudar algo, abra o PowerShell nesta pasta e rode:
 ```
